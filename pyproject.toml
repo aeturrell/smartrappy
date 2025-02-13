@@ -1,0 +1,51 @@
+[project]
+name = "smartrappy"
+version = "0.0.1"
+description = "Smart reproducible analytical pipeline execution"
+authors = [{name="Arthur Turrell", email="anon@anon.gmail.com"}]
+readme = "README.md"
+license = {file = "LICENSE"}
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.10",
+    "License :: OSI Approved :: MIT License",
+]
+requires-python = ">=3.10"
+dependencies = [
+]
+
+[dependency-groups]
+dev = [
+    "autopep8>=2.3.1",
+    "coverage[toml]>=7.6.9",
+    "jupyter>=1.1.1",
+    "nbstripout>=0.8.1",
+    "nox>=2024.10.9",
+    "pre-commit>=4.0.1",
+    "pre-commit-hooks>=5.0.0",
+    "pygments>=2.18.0",
+    "pytest>=8.3.4",
+    "quartodoc>=0.9.1",
+    "ruff>=0.8.3",
+    "toml>=0.10.2",
+    "typing-extensions>=4.12.2",
+    "xdoctest[colors]>=1.2.0",
+    "ipykernel>=6.29.5",
+    "pydoclint>=0.6.0",
+]
+
+
+[tool.mypy]
+strict = false
+pretty = true
+show_column_numbers = true
+show_error_codes = true
+show_error_context = true
+ignore_missing_imports = true
+disallow_untyped_calls = false
+
+[tool.pydoclint]
+style = 'google'
+exclude = ["noxfile.py", "tests/", "docs/"]

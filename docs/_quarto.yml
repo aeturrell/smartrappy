@@ -1,0 +1,42 @@
+project:
+  type: website
+
+website:
+  title: "smartrappy"
+  favicon: favicon.ico
+  twitter-card: true
+  navbar:
+    left:
+      - href: index.ipynb
+        text: Home
+      - text: "Reference"
+        file: reference/index.qmd
+      - contributing.qmd
+
+format:
+  html:
+    theme: flatly
+    css: styles.css
+    toc: true
+
+# tell quarto to read the generated sidebar
+metadata-files:
+  - _sidebar.yml
+
+
+quartodoc:
+  # the name used to import the package you want to create reference docs for
+  package: smartrappy
+  parser: google
+
+  # write sidebar data to this file
+  sidebar: _sidebar.yml
+
+  sections:
+    - title: "Function reference"
+      desc: "What smartrappy's functions do"
+      contents:
+        # the functions being documented in the package.
+        # you can refer to anything: class methods, modules, etc..
+        - function
+        - class
