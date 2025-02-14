@@ -1,3 +1,6 @@
+tests/test_output/**
+!tests/test_output/.gitkeep
+
 # Package related files
 /build/
 .mypy_cache/

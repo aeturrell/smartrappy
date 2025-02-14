@@ -1,6 +1,5 @@
 """Nox sessions."""
 
-import sys
 from pathlib import Path
 from textwrap import dedent
 
@@ -11,7 +10,7 @@ python_versions = ["3.10", "3.11", "3.12"]
 nox.needs_version = ">= 2021.6.6"
 nox.options.default_venv_backend = "uv"
 nox.options.sessions = (
-    "pre-commit",,
+    "pre-commit",
     "tests",
     "typeguard",
     "xdoctest",
