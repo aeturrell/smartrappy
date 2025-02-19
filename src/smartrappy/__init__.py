@@ -11,6 +11,9 @@ from importlib.metadata import PackageNotFoundError, version
 from typing import Dict, List, NamedTuple, Set, Tuple
 
 from graphviz import Digraph
+from rich.console import Console
+from rich.text import Text
+from rich.tree import Tree
 
 try:
     __version__ = version("smartrappy")
@@ -496,39 +499,6 @@ class ModuleImport(NamedTuple):
     is_internal: bool  # New field to track internal vs external imports
 
 
-def analyze_python_file_with_imports(
-    file_path: str,
-) -> Tuple[List[FileInfo], List[ModuleImport]]:
-    """Analyze a single Python file for file operations and imports"""
-    try:
-        with open(file_path, "r", encoding="utf-8") as f:
-            tree = ast.parse(f.read())
-
-        # Find file operations
-        file_finder = FileOperationFinder(file_path)
-        file_finder.visit(tree)
-
-        # Find imports
-        import_finder = ModuleImportFinder(file_path)
-        import_finder.visit(tree)
-
-        return file_finder.file_operations, import_finder.imports
-
-    except (SyntaxError, UnicodeDecodeError, IOError) as e:
-        print(f"Error processing {file_path}: {str(e)}")
-        return [], []
-
-
-class ModuleImport(NamedTuple):
-    """Information about a module import found in Python code"""
-
-    module_name: str
-    source_file: str
-    is_from_import: bool
-    imported_names: List[str]
-    is_internal: bool  # New field to track internal vs external imports
-
-
 class FileInfo(NamedTuple):
     """Information about a file operation found in Python code"""
 
@@ -810,20 +780,13 @@ def get_node_id(
 #     print(f"\nVisualization saved as {output_path}.pdf")
 
 
-from rich.console import Console
-from rich.layout import Layout
-from rich.panel import Panel
-from rich.text import Text
-from rich.tree import Tree
-
-
 def create_terminal_graph(
     operations: Dict[str, List[FileInfo]],
     imports: Dict[str, List[ModuleImport]],
     base_path: str,
 ) -> Tree:
     """Create a rich Tree visualization of the dependency graph"""
-    console = Console()
+    console = Console()  # noqa
 
     # Create the main tree
     tree = Tree("📦 Project Dependencies", guide_style="bold cyan")
