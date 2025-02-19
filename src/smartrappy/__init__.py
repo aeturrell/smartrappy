@@ -8,7 +8,7 @@ import ast
 import os
 from datetime import datetime
 from importlib.metadata import PackageNotFoundError, version
-from typing import Dict, List, NamedTuple
+from typing import Dict, List, NamedTuple, Set, Tuple
 
 from graphviz import Digraph
 
@@ -504,4 +504,253 @@ def analyze_and_visualize(folder_path: str, output_path: str = "file_operations"
     dot.render(
         output_path, view=True, format="pdf"
     )  # Creates both .pdf and .pdf.dot files
+    print(f"\nVisualization saved as {output_path}.pdf")
+
+
+class ModuleImport(NamedTuple):
+    """Information about a module import found in Python code"""
+
+    module_name: str
+    source_file: str
+    is_from_import: bool
+    imported_names: List[str]
+
+
+class FileInfo(NamedTuple):
+    """Information about a file operation found in Python code"""
+
+    filename: str
+    is_read: bool
+    is_write: bool
+    source_file: str
+
+
+class ModuleImportFinder(ast.NodeVisitor):
+    """AST visitor that finds module imports in Python code"""
+
+    def __init__(self, source_file: str):
+        self.source_file = source_file
+        self.imports: List[ModuleImport] = []
+
+    def visit_Import(self, node: ast.Import):
+        for name in node.names:
+            self.imports.append(
+                ModuleImport(
+                    module_name=name.name,
+                    source_file=self.source_file,
+                    is_from_import=False,
+                    imported_names=[name.asname or name.name],
+                )
+            )
+
+    def visit_ImportFrom(self, node: ast.ImportFrom):
+        if node.module:  # Ignore relative imports for simplicity
+            imported_names = [name.name for name in node.names]
+            self.imports.append(
+                ModuleImport(
+                    module_name=node.module,
+                    source_file=self.source_file,
+                    is_from_import=True,
+                    imported_names=imported_names,
+                )
+            )
+
+
+def analyze_python_file_with_imports(
+    file_path: str,
+) -> Tuple[List[FileInfo], List[ModuleImport]]:
+    """Analyze a single Python file for file operations and imports"""
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            tree = ast.parse(f.read())
+
+        # Find file operations
+        file_finder = FileOperationFinder(file_path)
+        file_finder.visit(tree)
+
+        # Find imports
+        import_finder = ModuleImportFinder(file_path)
+        import_finder.visit(tree)
+
+        return file_finder.file_operations, import_finder.imports
+
+    except (SyntaxError, UnicodeDecodeError, IOError) as e:
+        print(f"Error processing {file_path}: {str(e)}")
+        return [], []
+
+
+def find_all_operations(
+    folder_path: str,
+) -> Tuple[Dict[str, List[FileInfo]], Dict[str, List[ModuleImport]]]:
+    """Find all file operations and imports in Python files within a folder"""
+    all_file_ops: Dict[str, List[FileInfo]] = {}
+    all_imports: Dict[str, List[ModuleImport]] = {}
+
+    for root, _, files in os.walk(folder_path):
+        for file in files:
+            if not file.endswith(".py"):
+                continue
+
+            file_path = os.path.join(root, file)
+            operations, imports = analyze_python_file_with_imports(file_path)
+
+            # Group file operations
+            for op in operations:
+                if op.filename not in all_file_ops:
+                    all_file_ops[op.filename] = []
+                all_file_ops[op.filename].append(op)
+
+            # Group imports by source file
+            rel_path = os.path.relpath(file_path, folder_path)
+            all_imports[rel_path] = imports
+
+    return all_file_ops, all_imports
+
+
+def generate_enhanced_graphviz(
+    operations: Dict[str, List[FileInfo]],
+    imports: Dict[str, List[ModuleImport]],
+    base_path: str,
+) -> Digraph:
+    """Generate a Graphviz visualization including both file operations and imports"""
+    dot = Digraph(comment="Enhanced File Operations and Import Graph")
+    dot.attr(rankdir="TB")
+
+    # Track nodes and relationships
+    scripts = set()
+    data_files = set()
+    module_nodes = set()
+    relationships = set()
+    file_statuses = {}
+
+    # Process file operations
+    for filename, file_ops in operations.items():
+        data_files.add(filename)
+        filepath = os.path.join(base_path, filename)
+        file_statuses[filename] = get_file_status(filepath)
+
+        for op in file_ops:
+            script_name = os.path.basename(op.source_file)
+            scripts.add(script_name)
+            if op.is_read:
+                relationships.add((filename, script_name))
+            if op.is_write:
+                relationships.add((script_name, filename))
+
+    # Process imports
+    for script_path, script_imports in imports.items():
+        script_name = os.path.basename(script_path)
+        scripts.add(script_name)
+
+        for imp in script_imports:
+            module_nodes.add(imp.module_name)
+            relationships.add((imp.module_name, script_name))
+
+    # Define node styles
+    dot.attr("node", shape="box", style="filled")
+
+    # Add module nodes
+    for module in sorted(module_nodes):
+        node_id = f"module_{hash(module) & 0xFFFFFF}"
+        dot.node(
+            node_id,
+            module,
+            fillcolor="#ADD8E6",  # Light blue
+            color="#333333",
+            penwidth="2.0",
+        )
+
+    # Add script nodes
+    for script in sorted(scripts):
+        node_id = f"script_{hash(script) & 0xFFFFFF}"
+        dot.node(
+            node_id,
+            script,
+            fillcolor="#90EE90",  # Light green
+            color="#333333",
+            penwidth="2.0",
+        )
+
+    # Add file nodes
+    for file in sorted(data_files):
+        node_id = f"file_{hash(file) & 0xFFFFFF}"
+        status = file_statuses[file]
+
+        if status.exists:
+            mod_time = status.last_modified.strftime("%Y-%m-%d %H:%M:%S")
+            label = f"{file}\nModified: {mod_time}"
+            dot.node(
+                node_id,
+                label,
+                fillcolor="#FFB6C1",  # Light pink
+                color="#333333",
+                penwidth="2.0",
+            )
+        else:
+            label = f"{file}\nFile does not exist"
+            dot.node(
+                node_id,
+                label,
+                fillcolor="#FFB6C1",
+                color="#FF0000",
+                penwidth="3.0",
+                style="filled,dashed",
+            )
+
+    # Add relationships
+    dot.attr("edge", color="#333333")
+    for src, dst in sorted(relationships):
+        src_id = get_node_id(src, scripts, module_nodes)
+        dst_id = get_node_id(dst, scripts, module_nodes)
+        dot.edge(src_id, dst_id)
+
+    return dot
+
+
+def get_node_id(name: str, scripts: Set[str], modules: Set[str]) -> str:
+    """Helper function to get the correct node ID based on node type"""
+    if name in scripts:
+        return f"script_{hash(name) & 0xFFFFFF}"
+    elif name in modules:
+        return f"module_{hash(name) & 0xFFFFFF}"
+    else:
+        return f"file_{hash(name) & 0xFFFFFF}"
+
+
+def analyze_and_visualize(folder_path: str, output_path: str = "file_operations"):
+    """Analyze Python files and create an enhanced visualization"""
+    operations, imports = find_all_operations(folder_path)
+
+    print("\nFile Operations and Import Analysis:")
+    print("=" * 80)
+
+    # Print file operations
+    for filename, file_ops in sorted(operations.items()):
+        print(f"\nFile: {filename}")
+        has_read = any(op.is_read for op in file_ops)
+        has_write = any(op.is_write for op in file_ops)
+        op_type = (
+            "READ/WRITE"
+            if has_read and has_write
+            else ("READ" if has_read else "WRITE")
+        )
+        print(f"Operation: {op_type}")
+        print("Referenced in:")
+        sources = sorted(set(op.source_file for op in file_ops))
+        for source in sources:
+            print(f"  - {source}")
+
+    # Print import analysis
+    print("\nModule Imports:")
+    for script, script_imports in sorted(imports.items()):
+        if script_imports:
+            print(f"\nScript: {script}")
+            for imp in script_imports:
+                names = ", ".join(imp.imported_names)
+                import_type = "from" if imp.is_from_import else "import"
+                print(f"  - {import_type} {imp.module_name} ({names})")
+
+    print("\nGenerating visualization...")
+    dot = generate_enhanced_graphviz(operations, imports, folder_path)
+    dot.render(output_path, view=True, format="pdf")
     print(f"\nVisualization saved as {output_path}.pdf")

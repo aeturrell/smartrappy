@@ -1,6 +1,5 @@
 import pandas as pd
 
-
 df = pd.read_csv("lalala.csv")
 
 with open("text.txt", "w") as f:
