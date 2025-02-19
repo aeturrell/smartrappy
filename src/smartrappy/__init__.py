@@ -770,16 +770,156 @@ def get_node_id(
         return f"file_{hash(name) & 0xFFFFFF}"
 
 
+# def analyze_and_visualize(folder_path: str, output_path: str = "file_operations"):
+#     """Analyze Python files and create an enhanced visualization"""
+#     operations, imports = find_all_operations(folder_path)
+
+#     print("\nFile Operations and Import Analysis:")
+#     print("=" * 80)
+
+#     # Print file operations
+#     for filename, file_ops in sorted(operations.items()):
+#         print(f"\nFile: {filename}")
+#         has_read = any(op.is_read for op in file_ops)
+#         has_write = any(op.is_write for op in file_ops)
+#         op_type = (
+#             "READ/WRITE"
+#             if has_read and has_write
+#             else ("READ" if has_read else "WRITE")
+#         )
+#         print(f"Operation: {op_type}")
+#         print("Referenced in:")
+#         sources = sorted(set(op.source_file for op in file_ops))
+#         for source in sources:
+#             print(f"  - {source}")
+
+#     # Print import analysis
+#     print("\nModule Imports:")
+#     for script, script_imports in sorted(imports.items()):
+#         if script_imports:
+#             print(f"\nScript: {script}")
+#             for imp in script_imports:
+#                 names = ", ".join(imp.imported_names)
+#                 import_type = "from" if imp.is_from_import else "import"
+#                 module_type = "internal" if imp.is_internal else "external"
+#                 print(f"  - {import_type} {imp.module_name} ({names}) [{module_type}]")
+
+#     print("\nGenerating visualization...")
+#     dot = generate_enhanced_graphviz(operations, imports, folder_path)
+#     dot.render(output_path, view=True, format="pdf")
+#     print(f"\nVisualization saved as {output_path}.pdf")
+
+
+from rich.console import Console
+from rich.layout import Layout
+from rich.panel import Panel
+from rich.text import Text
+from rich.tree import Tree
+
+
+def create_terminal_graph(
+    operations: Dict[str, List[FileInfo]],
+    imports: Dict[str, List[ModuleImport]],
+    base_path: str,
+) -> Tree:
+    """Create a rich Tree visualization of the dependency graph"""
+    console = Console()
+
+    # Create the main tree
+    tree = Tree("📦 Project Dependencies", guide_style="bold cyan")
+
+    # Track all nodes and their relationships
+    nodes: Dict[str, Set[str]] = {}  # node -> dependencies
+    node_types: Dict[str, str] = {}  # node -> type
+
+    # Process imports
+    for script_path, script_imports in imports.items():
+        script_name = os.path.basename(script_path)
+        if script_name not in nodes:
+            nodes[script_name] = set()
+            node_types[script_name] = "script"
+
+        for imp in script_imports:
+            if imp.module_name not in nodes:
+                nodes[imp.module_name] = set()
+                node_types[imp.module_name] = (
+                    "internal" if imp.is_internal else "external"
+                )
+            nodes[script_name].add(imp.module_name)
+
+    # Process file operations
+    for filename, file_ops in operations.items():
+        if filename not in nodes:
+            nodes[filename] = set()
+            node_types[filename] = "data"
+
+        for op in file_ops:
+            script_name = os.path.basename(op.source_file)
+            if script_name not in nodes:
+                nodes[script_name] = set()
+                node_types[script_name] = "script"
+
+            if op.is_read:
+                nodes[script_name].add(filename)
+            if op.is_write:
+                if script_name not in nodes[filename]:
+                    nodes[filename].add(script_name)
+
+    # Helper function to get node style
+    def get_node_style(node_type: str, name: str) -> Text:
+        icons = {"script": "📜", "external": "📦", "internal": "🔧", "data": "📄"}
+        colors = {
+            "script": "green",
+            "external": "red",
+            "internal": "blue",
+            "data": "magenta",
+        }
+        return Text(f"{icons[node_type]} {name}", style=colors[node_type])
+
+    # Helper function to recursively build tree
+    def build_tree(node: str, seen: Set[str], parent_tree: Tree) -> None:
+        if node in seen:
+            return
+        seen.add(node)
+
+        # Add node to tree
+        node_tree = parent_tree.add(get_node_style(node_types[node], node))
+
+        # Add dependencies
+        for dep in sorted(nodes[node]):
+            if dep not in seen:
+                build_tree(dep, seen.copy(), node_tree)
+            else:
+                # Show circular dependency
+                node_tree.add(Text(f"↻ {dep} (circular)", "yellow"))
+
+    # Find root nodes (nodes with no incoming edges)
+    incoming_edges = set()
+    for deps in nodes.values():
+        incoming_edges.update(deps)
+    root_nodes = set(nodes.keys()) - incoming_edges
+
+    # Build tree from each root node
+    for root in sorted(root_nodes):
+        build_tree(root, set(), tree)
+
+    return tree
+
+
 def analyze_and_visualize(folder_path: str, output_path: str = "file_operations"):
-    """Analyze Python files and create an enhanced visualization"""
+    """Analyze Python files and create enhanced visualizations"""
     operations, imports = find_all_operations(folder_path)
 
-    print("\nFile Operations and Import Analysis:")
-    print("=" * 80)
+    # Create console for rich output
+    console = Console()
+
+    # Print header
+    console.print("\n[bold cyan]File Operations and Import Analysis[/bold cyan]")
+    console.print("=" * 80)
 
     # Print file operations
     for filename, file_ops in sorted(operations.items()):
-        print(f"\nFile: {filename}")
+        console.print(f"\n[bold]File:[/bold] {filename}")
         has_read = any(op.is_read for op in file_ops)
         has_write = any(op.is_write for op in file_ops)
         op_type = (
@@ -787,24 +927,36 @@ def analyze_and_visualize(folder_path: str, output_path: str = "file_operations"
             if has_read and has_write
             else ("READ" if has_read else "WRITE")
         )
-        print(f"Operation: {op_type}")
-        print("Referenced in:")
+        console.print(f"[bold]Operation:[/bold] {op_type}")
+        console.print("[bold]Referenced in:[/bold]")
         sources = sorted(set(op.source_file for op in file_ops))
         for source in sources:
-            print(f"  - {source}")
+            console.print(f"  - {source}")
 
     # Print import analysis
-    print("\nModule Imports:")
+    console.print("\n[bold]Module Imports:[/bold]")
     for script, script_imports in sorted(imports.items()):
         if script_imports:
-            print(f"\nScript: {script}")
+            console.print(f"\n[bold]Script:[/bold] {script}")
             for imp in script_imports:
                 names = ", ".join(imp.imported_names)
                 import_type = "from" if imp.is_from_import else "import"
-                module_type = "internal" if imp.is_internal else "external"
-                print(f"  - {import_type} {imp.module_name} ({names}) [{module_type}]")
+                module_type = (
+                    "[blue]internal[/blue]"
+                    if imp.is_internal
+                    else "[red]external[/red]"
+                )
+                console.print(
+                    f"  - {import_type} {imp.module_name} ({names}) [{module_type}]"
+                )
 
-    print("\nGenerating visualization...")
+    # Create and display terminal visualization
+    console.print("\n[bold cyan]Terminal Visualization[/bold cyan]")
+    tree = create_terminal_graph(operations, imports, folder_path)
+    console.print(tree)
+
+    # Generate graphviz visualization
+    console.print("\n[bold cyan]Generating Graphviz visualization...[/bold cyan]")
     dot = generate_enhanced_graphviz(operations, imports, folder_path)
     dot.render(output_path, view=True, format="pdf")
-    print(f"\nVisualization saved as {output_path}.pdf")
+    console.print(f"\nVisualization saved as {output_path}.pdf")
