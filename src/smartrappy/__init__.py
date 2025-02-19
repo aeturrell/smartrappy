@@ -371,26 +371,6 @@ def generate_mermaid_visualization(
     return "\n".join(mermaid)
 
 
-# def analyze_and_visualize(folder_path: str):
-#     """
-#     Analyze Python files in a folder and create a visualization of file operations.
-
-#     Args:
-#         folder_path: Path to the folder to analyze
-#     """
-#     operations = find_file_operations(folder_path)
-#     print_analysis(operations)
-
-#     print("\nGenerating visualization...")
-#     mermaid = generate_mermaid_visualization(operations, folder_path)
-#     print("\nMermaid Graph Definition:")
-#     print(mermaid)
-
-
-#  Convert mermaid diagram to CSV
-#  https://github.com/mermaid-js/mermaid-cli?tab=readme-ov-file#usage
-
-
 def generate_graphviz_visualization(
     operations: Dict[str, List[FileInfo]], base_path: str
 ) -> Digraph:
@@ -738,46 +718,6 @@ def get_node_id(
         return f"module_{hash(name) & 0xFFFFFF}"
     else:
         return f"file_{hash(name) & 0xFFFFFF}"
-
-
-# def analyze_and_visualize(folder_path: str, output_path: str = "file_operations"):
-#     """Analyze Python files and create an enhanced visualization"""
-#     operations, imports = find_all_operations(folder_path)
-
-#     print("\nFile Operations and Import Analysis:")
-#     print("=" * 80)
-
-#     # Print file operations
-#     for filename, file_ops in sorted(operations.items()):
-#         print(f"\nFile: {filename}")
-#         has_read = any(op.is_read for op in file_ops)
-#         has_write = any(op.is_write for op in file_ops)
-#         op_type = (
-#             "READ/WRITE"
-#             if has_read and has_write
-#             else ("READ" if has_read else "WRITE")
-#         )
-#         print(f"Operation: {op_type}")
-#         print("Referenced in:")
-#         sources = sorted(set(op.source_file for op in file_ops))
-#         for source in sources:
-#             print(f"  - {source}")
-
-#     # Print import analysis
-#     print("\nModule Imports:")
-#     for script, script_imports in sorted(imports.items()):
-#         if script_imports:
-#             print(f"\nScript: {script}")
-#             for imp in script_imports:
-#                 names = ", ".join(imp.imported_names)
-#                 import_type = "from" if imp.is_from_import else "import"
-#                 module_type = "internal" if imp.is_internal else "external"
-#                 print(f"  - {import_type} {imp.module_name} ({names}) [{module_type}]")
-
-#     print("\nGenerating visualization...")
-#     dot = generate_enhanced_graphviz(operations, imports, folder_path)
-#     dot.render(output_path, view=True, format="pdf")
-#     print(f"\nVisualization saved as {output_path}.pdf")
 
 
 def create_terminal_graph(
