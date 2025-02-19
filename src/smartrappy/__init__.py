@@ -486,27 +486,6 @@ def generate_graphviz_visualization(
     return dot
 
 
-def analyze_and_visualize(folder_path: str, output_path: str = "file_operations"):
-    """
-    Analyze Python files in a folder and create a visualization of file operations.
-
-    Args:
-        folder_path: Path to the folder to analyze
-        output_path: Base name for the output files (without extension)
-    """
-    operations = find_file_operations(folder_path)
-    print_analysis(operations)
-
-    print("\nGenerating visualization...")
-    dot = generate_graphviz_visualization(operations, folder_path)
-
-    # Save the graph in multiple formats
-    dot.render(
-        output_path, view=True, format="pdf"
-    )  # Creates both .pdf and .pdf.dot files
-    print(f"\nVisualization saved as {output_path}.pdf")
-
-
 class ModuleImport(NamedTuple):
     """Information about a module import found in Python code"""
 
@@ -514,46 +493,7 @@ class ModuleImport(NamedTuple):
     source_file: str
     is_from_import: bool
     imported_names: List[str]
-
-
-class FileInfo(NamedTuple):
-    """Information about a file operation found in Python code"""
-
-    filename: str
-    is_read: bool
-    is_write: bool
-    source_file: str
-
-
-class ModuleImportFinder(ast.NodeVisitor):
-    """AST visitor that finds module imports in Python code"""
-
-    def __init__(self, source_file: str):
-        self.source_file = source_file
-        self.imports: List[ModuleImport] = []
-
-    def visit_Import(self, node: ast.Import):
-        for name in node.names:
-            self.imports.append(
-                ModuleImport(
-                    module_name=name.name,
-                    source_file=self.source_file,
-                    is_from_import=False,
-                    imported_names=[name.asname or name.name],
-                )
-            )
-
-    def visit_ImportFrom(self, node: ast.ImportFrom):
-        if node.module:  # Ignore relative imports for simplicity
-            imported_names = [name.name for name in node.names]
-            self.imports.append(
-                ModuleImport(
-                    module_name=node.module,
-                    source_file=self.source_file,
-                    is_from_import=True,
-                    imported_names=imported_names,
-                )
-            )
+    is_internal: bool  # New field to track internal vs external imports
 
 
 def analyze_python_file_with_imports(
@@ -579,10 +519,102 @@ def analyze_python_file_with_imports(
         return [], []
 
 
+class ModuleImport(NamedTuple):
+    """Information about a module import found in Python code"""
+
+    module_name: str
+    source_file: str
+    is_from_import: bool
+    imported_names: List[str]
+    is_internal: bool  # New field to track internal vs external imports
+
+
+class FileInfo(NamedTuple):
+    """Information about a file operation found in Python code"""
+
+    filename: str
+    is_read: bool
+    is_write: bool
+    source_file: str
+
+
+class ModuleImportFinder(ast.NodeVisitor):
+    """AST visitor that finds module imports in Python code"""
+
+    def __init__(self, source_file: str, project_modules: Set[str]):
+        self.source_file = source_file
+        self.project_modules = project_modules
+        self.imports: List[ModuleImport] = []
+
+    def visit_Import(self, node: ast.Import):
+        for name in node.names:
+            base_module = name.name.split(".")[0]
+            self.imports.append(
+                ModuleImport(
+                    module_name=name.name,
+                    source_file=self.source_file,
+                    is_from_import=False,
+                    imported_names=[name.asname or name.name],
+                    is_internal=base_module in self.project_modules,
+                )
+            )
+
+    def visit_ImportFrom(self, node: ast.ImportFrom):
+        if node.module:  # Ignore relative imports for simplicity
+            base_module = node.module.split(".")[0]
+            imported_names = [name.name for name in node.names]
+            self.imports.append(
+                ModuleImport(
+                    module_name=node.module,
+                    source_file=self.source_file,
+                    is_from_import=True,
+                    imported_names=imported_names,
+                    is_internal=base_module in self.project_modules,
+                )
+            )
+
+
+def get_project_modules(folder_path: str) -> Set[str]:
+    """Find all potential internal module names in the project"""
+    modules = set()
+    for root, _, files in os.walk(folder_path):
+        for file in files:
+            if file.endswith(".py"):
+                # Get module name from file path
+                rel_path = os.path.relpath(os.path.join(root, file), folder_path)
+                module_name = os.path.splitext(rel_path)[0].replace(os.path.sep, ".")
+                modules.add(module_name.split(".")[0])  # Add base module name
+    return modules
+
+
+def analyze_python_file_with_imports(
+    file_path: str, project_modules: Set[str]
+) -> Tuple[List[FileInfo], List[ModuleImport]]:
+    """Analyze a single Python file for file operations and imports"""
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            tree = ast.parse(f.read())
+
+        # Find file operations
+        file_finder = FileOperationFinder(file_path)
+        file_finder.visit(tree)
+
+        # Find imports
+        import_finder = ModuleImportFinder(file_path, project_modules)
+        import_finder.visit(tree)
+
+        return file_finder.file_operations, import_finder.imports
+
+    except (SyntaxError, UnicodeDecodeError, IOError) as e:
+        print(f"Error processing {file_path}: {str(e)}")
+        return [], []
+
+
 def find_all_operations(
     folder_path: str,
 ) -> Tuple[Dict[str, List[FileInfo]], Dict[str, List[ModuleImport]]]:
     """Find all file operations and imports in Python files within a folder"""
+    project_modules = get_project_modules(folder_path)
     all_file_ops: Dict[str, List[FileInfo]] = {}
     all_imports: Dict[str, List[ModuleImport]] = {}
 
@@ -592,7 +624,9 @@ def find_all_operations(
                 continue
 
             file_path = os.path.join(root, file)
-            operations, imports = analyze_python_file_with_imports(file_path)
+            operations, imports = analyze_python_file_with_imports(
+                file_path, project_modules
+            )
 
             # Group file operations
             for op in operations:
@@ -619,7 +653,8 @@ def generate_enhanced_graphviz(
     # Track nodes and relationships
     scripts = set()
     data_files = set()
-    module_nodes = set()
+    internal_modules = set()
+    external_modules = set()
     relationships = set()
     file_statuses = {}
 
@@ -643,19 +678,33 @@ def generate_enhanced_graphviz(
         scripts.add(script_name)
 
         for imp in script_imports:
-            module_nodes.add(imp.module_name)
+            if imp.is_internal:
+                internal_modules.add(imp.module_name)
+            else:
+                external_modules.add(imp.module_name)
             relationships.add((imp.module_name, script_name))
 
     # Define node styles
     dot.attr("node", shape="box", style="filled")
 
-    # Add module nodes
-    for module in sorted(module_nodes):
+    # Add external module nodes
+    for module in sorted(external_modules):
         node_id = f"module_{hash(module) & 0xFFFFFF}"
         dot.node(
             node_id,
             module,
-            fillcolor="#ADD8E6",  # Light blue
+            fillcolor="#FFA07A",  # Light salmon for external modules
+            color="#333333",
+            penwidth="2.0",
+        )
+
+    # Add internal module nodes
+    for module in sorted(internal_modules):
+        node_id = f"module_{hash(module) & 0xFFFFFF}"
+        dot.node(
+            node_id,
+            module,
+            fillcolor="#ADD8E6",  # Light blue for internal modules
             color="#333333",
             penwidth="2.0",
         )
@@ -700,18 +749,22 @@ def generate_enhanced_graphviz(
     # Add relationships
     dot.attr("edge", color="#333333")
     for src, dst in sorted(relationships):
-        src_id = get_node_id(src, scripts, module_nodes)
-        dst_id = get_node_id(dst, scripts, module_nodes)
+        src_id = get_node_id(src, scripts, internal_modules, external_modules)
+        dst_id = get_node_id(dst, scripts, internal_modules, external_modules)
         dot.edge(src_id, dst_id)
 
     return dot
 
 
-def get_node_id(name: str, scripts: Set[str], modules: Set[str]) -> str:
+def get_node_id(
+    name: str, scripts: Set[str], internal_modules: Set[str], external_modules: Set[str]
+) -> str:
     """Helper function to get the correct node ID based on node type"""
     if name in scripts:
         return f"script_{hash(name) & 0xFFFFFF}"
-    elif name in modules:
+    elif name in internal_modules:
+        return f"module_{hash(name) & 0xFFFFFF}"
+    elif name in external_modules:
         return f"module_{hash(name) & 0xFFFFFF}"
     else:
         return f"file_{hash(name) & 0xFFFFFF}"
@@ -748,7 +801,8 @@ def analyze_and_visualize(folder_path: str, output_path: str = "file_operations"
             for imp in script_imports:
                 names = ", ".join(imp.imported_names)
                 import_type = "from" if imp.is_from_import else "import"
-                print(f"  - {import_type} {imp.module_name} ({names})")
+                module_type = "internal" if imp.is_internal else "external"
+                print(f"  - {import_type} {imp.module_name} ({names}) [{module_type}]")
 
     print("\nGenerating visualization...")
     dot = generate_enhanced_graphviz(operations, imports, folder_path)
