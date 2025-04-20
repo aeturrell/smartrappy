@@ -4,7 +4,7 @@ import ast
 import os
 from typing import List, Optional, Set, Tuple
 
-from smartrappy.models import FileInfo, ModuleImport, ProjectModel
+from smartrappy.models import DatabaseInfo, FileInfo, ModuleImport, ProjectModel
 
 
 def get_mode_properties(mode: str) -> tuple[bool, bool]:
@@ -200,6 +200,383 @@ class ModuleImportFinder(ast.NodeVisitor):
             )
 
 
+class DatabaseOperationFinder(ast.NodeVisitor):
+    """AST visitor that finds database operations in Python code."""
+
+    def __init__(self, source_file: str):
+        self.source_file = source_file
+        self.database_operations: List[DatabaseInfo] = []
+
+    def visit_Call(self, node: ast.Call):
+        # Check for SQLAlchemy operations
+        if db_info := get_sqlalchemy_info(node, self.source_file):
+            self.database_operations.append(db_info)
+
+        # Check for pandas SQL operations
+        if db_info := get_pandas_sql_info(node, self.source_file):
+            self.database_operations.append(db_info)
+
+        # Check for direct database driver operations
+        if db_info := get_direct_db_driver_info(node, self.source_file):
+            self.database_operations.append(db_info)
+
+        self.generic_visit(node)
+
+
+def get_pandas_sql_info(node: ast.Call, source_file: str) -> Optional[DatabaseInfo]:
+    """Extract database information from pandas SQL operations."""
+    if not isinstance(node.func, ast.Attribute):
+        return None
+
+    # Check for pandas read_sql operations
+    if node.func.attr in ["read_sql", "read_sql_query", "read_sql_table"]:
+        # Extract connection from arguments (often 2nd argument)
+        conn_string = None
+        db_name = "pandas_sql_db"
+        db_type = "unknown"
+
+        # Check for SQL query in first argument
+        if len(node.args) > 0 and isinstance(node.args[0], ast.Str):
+            sql_query = node.args[0].s.lower()
+            # Try to infer database type from SQL dialect
+            if any(
+                kw in sql_query for kw in ["top ", "isnull(", "convert(", "getdate()"]
+            ):
+                db_type = "mssql"
+                db_name = "mssql_pandas_db"
+
+        # Check for connection in args or kwargs
+        for keyword in node.keywords:
+            if keyword.arg == "con":
+                # Connection can be a string or a connection object
+                if isinstance(keyword.value, ast.Str):
+                    conn_string = keyword.value.s
+
+                    # Attempt to determine database type from connection string
+                    if "postgresql" in conn_string.lower():
+                        db_type = "postgresql"
+                    elif "mysql" in conn_string.lower():
+                        db_type = "mysql"
+                    elif "sqlite" in conn_string.lower():
+                        db_type = "sqlite"
+                    elif any(
+                        x in conn_string.lower()
+                        for x in ["mssql", "sql server", "sqlserver", "odbc"]
+                    ):
+                        db_type = "mssql"
+
+                    # Extract DB name if possible
+                    import re
+
+                    # Common patterns for database names in connection strings
+                    patterns = [
+                        r"/([^/]+)$",  # Standard URI format
+                        r"database=([^;]+)",  # MSSQL/ODBC style
+                        r"initial catalog=([^;]+)",  # MSSQL style
+                    ]
+
+                    for pattern in patterns:
+                        match = re.search(pattern, conn_string, re.IGNORECASE)
+                        if match:
+                            db_name = match.group(1)
+                            break
+                elif isinstance(keyword.value, ast.Name):
+                    # Connection variable - can't determine exact DB, but might be able to infer type
+                    conn_var_name = keyword.value.id
+                    if any(
+                        x in conn_var_name.lower() for x in ["pg", "postgres", "psql"]
+                    ):
+                        db_type = "postgresql"
+                        db_name = "postgresql_pandas_db"
+                    elif "mysql" in conn_var_name.lower():
+                        db_type = "mysql"
+                        db_name = "mysql_pandas_db"
+                    elif "sqlite" in conn_var_name.lower():
+                        db_type = "sqlite"
+                        db_name = "sqlite_pandas_db"
+                    elif any(
+                        x in conn_var_name.lower()
+                        for x in ["mssql", "sql_server", "sqlserver", "odbc"]
+                    ):
+                        db_type = "mssql"
+                        db_name = "mssql_pandas_db"
+
+        return DatabaseInfo(
+            db_name=db_name,
+            connection_string=conn_string,
+            db_type=db_type,
+            is_read=True,
+            is_write=False,
+            source_file=source_file,
+        )
+    # Check for DataFrame.to_sql method
+    elif node.func.attr == "to_sql":
+        # This is a write operation
+        table_name = None
+        db_name = "pandas_sql_db"
+        db_type = "unknown"
+
+        # Check for table name in first arg
+        if len(node.args) > 0 and isinstance(node.args[0], ast.Str):
+            table_name = node.args[0].s
+            db_name = f"pandas_sql_db:{table_name}"
+
+        # Check for connection in args or kwargs
+        for keyword in node.keywords:
+            if keyword.arg == "con" and isinstance(keyword.value, ast.Str):
+                conn_string = keyword.value.s
+
+                # Attempt to determine database type from connection string
+                if "postgresql" in conn_string.lower():
+                    db_type = "postgresql"
+                elif "mysql" in conn_string.lower():
+                    db_type = "mysql"
+                elif "sqlite" in conn_string.lower():
+                    db_type = "sqlite"
+
+        return DatabaseInfo(
+            db_name=db_name,
+            connection_string=None,  # We don't extract this for to_sql
+            db_type=db_type,
+            is_read=False,
+            is_write=True,
+            source_file=source_file,
+        )
+
+    return None
+
+
+def get_sqlalchemy_info(node: ast.Call, source_file: str) -> Optional[DatabaseInfo]:
+    """Extract database information from SQLAlchemy operations."""
+    # Check for create_engine calls
+    if isinstance(node.func, ast.Attribute) and node.func.attr == "create_engine":
+        # Extract connection string from the first argument
+        if len(node.args) > 0 and isinstance(node.args[0], ast.Str):
+            conn_string = node.args[0].s
+
+            # Try to extract database type and name from connection string
+            db_type = "unknown"
+            db_name = "unknown_db"
+
+            # Parse common SQLAlchemy connection strings
+            if conn_string.startswith("postgresql"):
+                db_type = "postgresql"
+                # Extract database name from connection string
+                import re
+
+                match = re.search(r"/([^/]+)$", conn_string)
+                if match:
+                    db_name = match.group(1)
+            elif conn_string.startswith("mysql"):
+                db_type = "mysql"
+                # Extract database name
+                import re
+
+                match = re.search(r"/([^/]+)$", conn_string)
+                if match:
+                    db_name = match.group(1)
+            elif conn_string.startswith("sqlite"):
+                db_type = "sqlite"
+                # For SQLite, the database name is the file path
+                import re
+
+                match = re.search(r"sqlite:///(.+)$", conn_string)
+                if match:
+                    db_name = match.group(1)
+            elif any(x in conn_string.lower() for x in ["mssql", "pyodbc", "pymssql"]):
+                # Handle MS SQL Server connection strings
+                db_type = "mssql"
+                import re
+
+                # Look for database name in different format variations
+                patterns = [
+                    r"database=([^;]+)",
+                    r"initial catalog=([^;]+)",
+                    r"/([^/]+)$",  # For URLs like mssql+pyodbc://server/database
+                ]
+
+                for pattern in patterns:
+                    match = re.search(pattern, conn_string, re.IGNORECASE)
+                    if match:
+                        db_name = match.group(1)
+                        break
+
+            # We can't determine read/write at the create_engine level
+            # Default to both since we don't know the actual operations
+            return DatabaseInfo(
+                db_name=db_name,
+                connection_string=conn_string,
+                db_type=db_type,
+                is_read=True,  # Assuming engine could be used for either
+                is_write=True,  # Assuming engine could be used for either
+                source_file=source_file,
+            )
+        # Check for session operations
+    if isinstance(node.func, ast.Attribute) and node.func.attr in [
+        "query",
+        "execute",
+        "bulk_insert_mappings",
+        "add",
+        "delete",
+    ]:
+        # These are harder to trace back to a specific database without context
+        # We might need more sophisticated analysis here
+        is_read = node.func.attr in ["query"]
+        is_write = node.func.attr in [
+            "execute",
+            "bulk_insert_mappings",
+            "add",
+            "delete",
+        ]
+
+        if is_read or is_write:
+            return DatabaseInfo(
+                db_name="sqlalchemy_db",  # Generic name without more context
+                connection_string=None,
+                db_type="sqlalchemy",
+                is_read=is_read,
+                is_write=is_write,
+                source_file=source_file,
+            )
+
+    return None
+
+
+def get_direct_db_driver_info(
+    node: ast.Call, source_file: str
+) -> Optional[DatabaseInfo]:
+    """Extract database information from direct database driver calls."""
+    # Check for common database driver connection functions
+    if isinstance(node.func, ast.Name):
+        # psycopg2 connect or other direct connect calls
+        if node.func.id == "connect":
+            # Check for database parameter
+            db_name = "unknown_db"
+            db_type = "unknown"
+
+            # Look through the keywords to determine database type and name
+            for keyword in node.keywords:
+                if keyword.arg == "database" and isinstance(keyword.value, ast.Str):
+                    db_name = keyword.value.s
+                elif keyword.arg == "dsn" and isinstance(keyword.value, ast.Str):
+                    # This might be an ODBC connection string
+                    dsn = keyword.value.s
+                    if "sql server" in dsn.lower():
+                        db_type = "mssql"
+                        # Try to extract database name from DSN
+                        import re
+
+                        db_match = re.search(r"database=([^;]+)", dsn, re.IGNORECASE)
+                        if db_match:
+                            db_name = db_match.group(1)
+
+            return DatabaseInfo(
+                db_name=db_name,
+                connection_string=None,
+                db_type=db_type,
+                is_read=True,  # Connections can be used for either
+                is_write=True,  # Connections can be used for either
+                source_file=source_file,
+            )
+
+    # Check for connection methods from imported modules
+    if isinstance(node.func, ast.Attribute):
+        # psycopg2.connect, mysql.connector.connect, sqlite3.connect, pyodbc.connect
+        if node.func.attr == "connect":
+            db_type = "unknown"
+            db_name = "unknown_db"
+
+            # Try to determine database type from module
+            if hasattr(node.func.value, "id"):
+                module_name = node.func.value.id
+                if module_name in ["psycopg2", "psycopg"]:
+                    db_type = "postgresql"
+                    db_name = "postgresql_db"
+                elif module_name == "sqlite3":
+                    db_type = "sqlite"
+                    # SQLite databases are files, check for database path
+                    if len(node.args) > 0 and isinstance(node.args[0], ast.Str):
+                        db_name = node.args[0].s
+                elif "mysql" in module_name:
+                    db_type = "mysql"
+                    db_name = "mysql_db"
+                elif module_name in ["pyodbc", "turbodbc", "pymssql"]:
+                    db_type = "mssql"
+                    db_name = "mssql_db"
+
+                # For pyodbc and other MSSQL connectors, check connection strings and parameters
+                if module_name in ["pyodbc", "turbodbc", "pymssql"]:
+                    # Check if there's a connection string in the arguments
+                    if len(node.args) > 0 and isinstance(node.args[0], ast.Str):
+                        conn_str = node.args[0].s
+
+                        # Try to extract database name from connection string
+                        import re
+
+                        # Look for different forms of database specification in connection strings
+                        db_patterns = [
+                            r"database=([^;]+)",  # database=DbName
+                            r"initial catalog=([^;]+)",  # initial catalog=DbName
+                            r"db=([^;]+)",  # db=DbName
+                            r"server=([^;\\\/]+)\\([^;]+)",  # server=Server\Instance
+                            r"dsn=([^;]+)",  # dsn=DsnName
+                        ]
+
+                        for pattern in db_patterns:
+                            match = re.search(pattern, conn_str, re.IGNORECASE)
+                            if match:
+                                if pattern == r"server=([^;\\\/]+)\\([^;]+)":
+                                    # This pattern captures both server and instance
+                                    db_name = f"{match.group(1)}\\{match.group(2)}"
+                                else:
+                                    db_name = match.group(1)
+                                break
+
+                # Check for database parameter in keywords
+                for keyword in node.keywords:
+                    if keyword.arg in [
+                        "database",
+                        "db",
+                        "dbname",
+                        "initial_catalog",
+                    ] and isinstance(keyword.value, ast.Str):
+                        db_name = keyword.value.s
+                    elif keyword.arg == "dsn" and isinstance(keyword.value, ast.Str):
+                        # DSN might contain database name or be the database identifier itself
+                        dsn = keyword.value.s
+                        if not db_name or db_name == "mssql_db":
+                            db_name = dsn
+                    elif keyword.arg == "server" and isinstance(keyword.value, ast.Str):
+                        # If we have a server but no database name yet, use the server as identifier
+                        if db_name == "mssql_db":
+                            db_name = f"mssql_on_{keyword.value.s}"
+                    elif keyword.arg == "connection_string" and isinstance(
+                        keyword.value, ast.Str
+                    ):
+                        # Parse connection string for database details
+                        conn_str = keyword.value.s
+                        import re
+
+                        db_match = re.search(
+                            r"(database|initial catalog)=([^;]+)",
+                            conn_str,
+                            re.IGNORECASE,
+                        )
+                        if db_match:
+                            db_name = db_match.group(2)
+
+            return DatabaseInfo(
+                db_name=db_name,
+                connection_string=None,
+                db_type=db_type,
+                is_read=True,  # Connections can be used for either
+                is_write=True,  # Connections can be used for either
+                source_file=source_file,
+            )
+
+    return None
+
+
 def get_project_modules(folder_path: str) -> Set[str]:
     """Find all potential internal module names in the project."""
     modules = set()
@@ -221,8 +598,8 @@ def get_project_modules(folder_path: str) -> Set[str]:
 
 def analyse_python_file(
     file_path: str, project_modules: Set[str]
-) -> Tuple[List[FileInfo], List[ModuleImport]]:
-    """Analyse a single Python file for file operations and imports."""
+) -> Tuple[List[FileInfo], List[ModuleImport], List[DatabaseInfo]]:
+    """Analyse a single Python file for file operations, imports, and database operations."""
     try:
         with open(file_path, "r", encoding="utf-8") as f:
             tree = ast.parse(f.read())
@@ -235,11 +612,19 @@ def analyse_python_file(
         import_finder = ModuleImportFinder(file_path, project_modules)
         import_finder.visit(tree)
 
-        return file_finder.file_operations, import_finder.imports
+        # Find database operations
+        db_finder = DatabaseOperationFinder(file_path)
+        db_finder.visit(tree)
+
+        return (
+            file_finder.file_operations,
+            import_finder.imports,
+            db_finder.database_operations,
+        )
 
     except (SyntaxError, UnicodeDecodeError, IOError) as e:
         print(f"Error processing {file_path}: {str(e)}")
-        return [], []
+        return [], [], []
 
 
 def analyse_project(folder_path: str) -> ProjectModel:
@@ -266,7 +651,9 @@ def analyse_project(folder_path: str) -> ProjectModel:
                 continue
 
             file_path = os.path.join(root, file)
-            operations, imports = analyse_python_file(file_path, project_modules)
+            operations, imports, db_operations = analyse_python_file(
+                file_path, project_modules
+            )
 
             # Add file operations to the model
             for op in operations:
@@ -275,6 +662,10 @@ def analyse_project(folder_path: str) -> ProjectModel:
             # Add imports to the model
             for imp in imports:
                 model.add_import(imp)
+
+            # Add database operations to the model
+            for db_op in db_operations:
+                model.add_database_operation(db_op)
 
     # Build the graph representation
     model.build_graph()

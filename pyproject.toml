@@ -37,6 +37,8 @@ dev = [
     "ipykernel>=6.29.5",
     "pydoclint>=0.6.0",
     "typeguard>=4.4.2",
+    "pyodbc>=5.2.0",
+    "sqlalchemy>=2.0.40",
 ]
 
 [project.scripts]

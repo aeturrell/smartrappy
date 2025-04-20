@@ -15,6 +15,7 @@ except PackageNotFoundError:
 # Import CLI functions last to avoid circular imports
 from smartrappy.analyser import analyse_project
 from smartrappy.models import (
+    DatabaseInfo,  # New import
     Edge,
     FileInfo,
     FileStatus,
@@ -36,6 +37,7 @@ __all__ = [
     # Main functions
     "analyse_project",
     # Models
+    "DatabaseInfo",  # New export
     "Edge",
     "FileInfo",
     "FileStatus",
