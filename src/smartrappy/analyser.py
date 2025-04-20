@@ -279,6 +279,47 @@ class DatabaseOperationFinder(ast.NodeVisitor):
                 db_info = get_pandas_sql_info(node, self.source_file)
                 if db_info:
                     self.database_operations.append(db_info)
+
+        # Check for DataFrame.to_sql method (write operation)
+        elif isinstance(node.func, ast.Attribute) and node.func.attr == "to_sql":
+            # Find the connection variable
+            conn_var = None
+
+            # Check in positional args (usually the second argument)
+            if len(node.args) > 1 and isinstance(node.args[1], ast.Name):
+                conn_var = node.args[1].id
+
+            # Check in keywords
+            for kw in node.keywords:
+                if kw.arg == "con" and isinstance(kw.value, ast.Name):
+                    conn_var = kw.value.id
+
+            if conn_var and conn_var in self.connection_variables:
+                # We found a to_sql operation using a known connection
+                orig_db_info = self.connection_variables[conn_var]
+
+                # Get table name if available
+                table_name = "unknown_table"
+                if len(node.args) > 0 and isinstance(node.args[0], ast.Str):
+                    table_name = node.args[0].s
+
+                # Create a new operation with write access only
+                write_db_info = DatabaseInfo(
+                    db_name=orig_db_info.db_name,
+                    connection_string=orig_db_info.connection_string,
+                    db_type=orig_db_info.db_type,
+                    is_read=False,
+                    is_write=True,
+                    source_file=self.source_file,
+                    uses_conn_var=conn_var,
+                )
+                self.database_operations.append(write_db_info)
+            else:
+                # Connection variable not found or operation doesn't use a variable
+                # Process as generic pandas to_sql operation
+                db_info = get_pandas_sql_info(node, self.source_file)
+                if db_info:
+                    self.database_operations.append(db_info)
         else:
             # Check for other database operations
             db_info = None
@@ -290,7 +331,8 @@ class DatabaseOperationFinder(ast.NodeVisitor):
             # If not SQLAlchemy, try regular pandas operations
             if db_info is None and not (
                 isinstance(node.func, ast.Attribute)
-                and node.func.attr in ["read_sql", "read_sql_query", "read_sql_table"]
+                and node.func.attr
+                in ["read_sql", "read_sql_query", "read_sql_table", "to_sql"]
             ):
                 db_info = get_pandas_sql_info(node, self.source_file)
 
@@ -375,6 +417,7 @@ def get_pandas_sql_info(node: ast.Call, source_file: str) -> Optional[DatabaseIn
             is_write=False,
             source_file=source_file,
         )
+
     # Check for DataFrame.to_sql method
     elif node.func.attr == "to_sql":
         # This is a write operation
@@ -388,6 +431,7 @@ def get_pandas_sql_info(node: ast.Call, source_file: str) -> Optional[DatabaseIn
             db_name = f"pandas_sql_db:{table_name}"
 
         # Check for connection in args or kwargs
+        conn_string = None
         for keyword in node.keywords:
             if keyword.arg == "con" and isinstance(keyword.value, ast.Str):
                 conn_string = keyword.value.s
@@ -400,9 +444,23 @@ def get_pandas_sql_info(node: ast.Call, source_file: str) -> Optional[DatabaseIn
                 elif "sqlite" in conn_string.lower():
                     db_type = "sqlite"
 
+                # Extract DB name if possible from connection string
+                import re
+
+                patterns = [
+                    r"/([^/]+)$",  # Standard URI format
+                    r"database=([^;]+)",  # MSSQL/ODBC style
+                    r"initial catalog=([^;]+)",  # MSSQL style
+                ]
+                for pattern in patterns:
+                    match = re.search(pattern, conn_string, re.IGNORECASE)
+                    if match:
+                        db_name = match.group(1)
+                        break
+
         return DatabaseInfo(
             db_name=db_name,
-            connection_string=None,  # We don't extract this for to_sql
+            connection_string=conn_string,
             db_type=db_type,
             is_read=False,
             is_write=True,

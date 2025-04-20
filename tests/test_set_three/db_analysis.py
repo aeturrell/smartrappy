@@ -30,5 +30,5 @@ df5 = pd.DataFrame({"col1": [1, 2], "col2": [3, 4]})
 df5.to_sql("new_mssql_table", mssql_engine, if_exists="replace")
 
 # PostgreSQL via SQLAlchemy
-pg_engine = create_engine("postgresql://user:password@localhost:5432/mydatabase")
+pg_engine = create_engine("postgresql://user:password@localhost:5432/pgdb")
 df6 = pd.read_sql_query("SELECT * FROM pg_tables", pg_engine)
