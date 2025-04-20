@@ -35,15 +35,15 @@ plt.savefig("plot.png")
 
     # Extract Python chunks
     chunks = extract_python_chunks(qmd_content)
-    
+
     # Check that we found the right number of chunks
     assert len(chunks) == 3
-    
+
     # Check that the chunks have the right content
     assert "import pandas as pd" in chunks[0]
     assert "df.to_excel(" in chunks[1]
     assert "import matplotlib.pyplot" in chunks[2]
-    
+
     # Check that the R chunk was ignored
     for chunk in chunks:
         assert "Hello from R" not in chunk
@@ -115,11 +115,11 @@ plt.savefig("plot.png")
 ```
 """
     qmd_file.write_text(qmd_content)
-    
+
     # Extract chunks from the file
     with open(qmd_file, "r") as f:
         chunks = extract_python_chunks(f.read())
-    
+
     assert len(chunks) == 2
     assert "import pandas as pd" in chunks[0]
     assert "import matplotlib.pyplot as plt" in chunks[1]
