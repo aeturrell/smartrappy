@@ -217,6 +217,7 @@ class DatabaseOperationFinder(ast.NodeVisitor):
         # Track connection variables and their database info
         self.connection_variables = {}  # Map from variable name to DatabaseInfo
         self.current_assignment_target = None
+        self.sqlalchemy_engines = {}  # Track SQLAlchemy engines
 
     def visit_Assign(self, node: ast.Assign):
         # Track the current assignment target
@@ -228,8 +229,39 @@ class DatabaseOperationFinder(ast.NodeVisitor):
             self.generic_visit(node)
 
     def visit_Call(self, node: ast.Call):
+        # Check for SQLAlchemy engine creation
+        if (
+            isinstance(node.func, ast.Attribute)
+            and hasattr(node.func.value, "id")
+            and node.func.value.id == "create_engine"
+            and self.current_assignment_target
+        ):
+            # This is a SQLAlchemy engine being created
+            db_info = get_sqlalchemy_info(node, self.source_file)
+            if db_info:
+                # Register this engine variable
+                self.sqlalchemy_engines[self.current_assignment_target] = db_info
+                # Store with engine variable name
+                db_info_with_var = db_info._replace(
+                    conn_var_name=self.current_assignment_target
+                )
+                self.database_operations.append(db_info_with_var)
+
+        # Check for SQLAlchemy function calls themselves
+        elif isinstance(node.func, ast.Name) and node.func.id == "create_engine":
+            # Direct create_engine call
+            db_info = get_sqlalchemy_info(node, self.source_file)
+            if db_info and self.current_assignment_target:
+                # Register this engine variable
+                self.sqlalchemy_engines[self.current_assignment_target] = db_info
+                # Store with engine variable name
+                db_info_with_var = db_info._replace(
+                    conn_var_name=self.current_assignment_target
+                )
+                self.database_operations.append(db_info_with_var)
+
         # Check for database connection creation
-        if isinstance(node.func, ast.Attribute) and node.func.attr == "connect":
+        elif isinstance(node.func, ast.Attribute) and node.func.attr == "connect":
             # This is a database connection being created
             db_info = get_direct_db_driver_info(node, self.source_file)
             if db_info and self.current_assignment_target:
@@ -241,13 +273,13 @@ class DatabaseOperationFinder(ast.NodeVisitor):
                 )
                 self.database_operations.append(db_info_with_var)
 
-        # Check for pandas SQL operations using connection variables
+        # Check for pandas SQL operations using connection variables or SQLAlchemy engines
         elif isinstance(node.func, ast.Attribute) and node.func.attr in [
             "read_sql",
             "read_sql_query",
             "read_sql_table",
         ]:
-            # Find the connection variable
+            # Find the connection variable or engine
             conn_var = None
 
             # Check in positional args (usually the second argument)
@@ -259,7 +291,22 @@ class DatabaseOperationFinder(ast.NodeVisitor):
                 if kw.arg == "con" and isinstance(kw.value, ast.Name):
                     conn_var = kw.value.id
 
-            if conn_var and conn_var in self.connection_variables:
+            # First check if it's a known SQLAlchemy engine
+            if conn_var and conn_var in self.sqlalchemy_engines:
+                orig_db_info = self.sqlalchemy_engines[conn_var]
+                # Create a new operation with read access only
+                read_db_info = DatabaseInfo(
+                    db_name=orig_db_info.db_name,
+                    connection_string=orig_db_info.connection_string,
+                    db_type=orig_db_info.db_type,
+                    is_read=True,
+                    is_write=False,
+                    source_file=self.source_file,
+                    uses_conn_var=conn_var,
+                )
+                self.database_operations.append(read_db_info)
+            # Then check if it's a known database connection
+            elif conn_var and conn_var in self.connection_variables:
                 # We found a pandas SQL operation using a known connection
                 orig_db_info = self.connection_variables[conn_var]
                 # Create a new operation with read access only
@@ -282,7 +329,7 @@ class DatabaseOperationFinder(ast.NodeVisitor):
 
         # Check for DataFrame.to_sql method (write operation)
         elif isinstance(node.func, ast.Attribute) and node.func.attr == "to_sql":
-            # Find the connection variable
+            # Find the connection variable or engine
             conn_var = None
 
             # Check in positional args (usually the second argument)
@@ -294,14 +341,35 @@ class DatabaseOperationFinder(ast.NodeVisitor):
                 if kw.arg == "con" and isinstance(kw.value, ast.Name):
                     conn_var = kw.value.id
 
-            if conn_var and conn_var in self.connection_variables:
-                # We found a to_sql operation using a known connection
-                orig_db_info = self.connection_variables[conn_var]
+            # First check if it's a known SQLAlchemy engine
+            if conn_var and conn_var in self.sqlalchemy_engines:
+                orig_db_info = self.sqlalchemy_engines[conn_var]
 
                 # Get table name if available
                 table_name = "unknown_table"
                 if len(node.args) > 0 and isinstance(node.args[0], ast.Str):
                     table_name = node.args[0].s
+
+                # Create a new operation with write access only
+                write_db_info = DatabaseInfo(
+                    db_name=orig_db_info.db_name,
+                    connection_string=orig_db_info.connection_string,
+                    db_type=orig_db_info.db_type,
+                    is_read=False,
+                    is_write=True,
+                    source_file=self.source_file,
+                    uses_conn_var=conn_var,
+                )
+                self.database_operations.append(write_db_info)
+            # Then check if it's a known database connection
+            elif conn_var and conn_var in self.connection_variables:
+                # We found a to_sql operation using a known connection
+                orig_db_info = self.connection_variables[conn_var]
+
+                # # Get table name if available
+                # table_name = "unknown_table"
+                # if len(node.args) > 0 and isinstance(node.args[0], ast.Str):
+                #     table_name = node.args[0].s
 
                 # Create a new operation with write access only
                 write_db_info = DatabaseInfo(
@@ -473,95 +541,73 @@ def get_pandas_sql_info(node: ast.Call, source_file: str) -> Optional[DatabaseIn
 def get_sqlalchemy_info(node: ast.Call, source_file: str) -> Optional[DatabaseInfo]:
     """Extract database information from SQLAlchemy operations."""
     # Check for create_engine calls
-    if isinstance(node.func, ast.Attribute) and node.func.attr == "create_engine":
-        # Extract connection string from the first argument
-        if len(node.args) > 0 and isinstance(node.args[0], ast.Str):
-            conn_string = node.args[0].s
+    if not (
+        (isinstance(node.func, ast.Attribute) and node.func.attr == "create_engine")
+        or (isinstance(node.func, ast.Name) and node.func.id == "create_engine")
+    ):
+        return None
 
-            # Try to extract database type and name from connection string
-            db_type = "unknown"
-            db_name = "unknown_db"
+    # Extract connection string from the first argument
+    if len(node.args) > 0 and isinstance(node.args[0], ast.Str):
+        conn_string = node.args[0].s
 
-            # Parse common SQLAlchemy connection strings
-            if conn_string.startswith("postgresql"):
-                db_type = "postgresql"
-                # Extract database name from connection string
-                import re
+        # Try to extract database type and name from connection string
+        db_type = "unknown"
+        db_name = "unknown_db"
 
-                match = re.search(r"/([^/]+)$", conn_string)
+        # Parse common SQLAlchemy connection strings
+        if conn_string.startswith("postgresql"):
+            db_type = "postgresql"
+            # Extract database name from connection string
+            import re
+
+            match = re.search(r"/([^/]+)$", conn_string)
+            if match:
+                db_name = match.group(1)
+        elif conn_string.startswith("mysql"):
+            db_type = "mysql"
+            # Extract database name
+            import re
+
+            match = re.search(r"/([^/]+)$", conn_string)
+            if match:
+                db_name = match.group(1)
+        elif conn_string.startswith("sqlite"):
+            db_type = "sqlite"
+            # For SQLite, the database name is the file path
+            import re
+
+            match = re.search(r"sqlite:///(.+)$", conn_string)
+            if match:
+                db_name = match.group(1)
+        elif any(x in conn_string.lower() for x in ["mssql", "pyodbc", "pymssql"]):
+            # Handle MS SQL Server connection strings
+            db_type = "mssql"
+            import re
+
+            # Look for database name in different format variations
+            patterns = [
+                r"database=([^;]+)",
+                r"initial catalog=([^;]+)",
+                r"/([^/]+)$",  # For URLs like mssql+pyodbc://server/database
+            ]
+
+            for pattern in patterns:
+                match = re.search(pattern, conn_string, re.IGNORECASE)
                 if match:
                     db_name = match.group(1)
-            elif conn_string.startswith("mysql"):
-                db_type = "mysql"
-                # Extract database name
-                import re
+                    break
 
-                match = re.search(r"/([^/]+)$", conn_string)
-                if match:
-                    db_name = match.group(1)
-            elif conn_string.startswith("sqlite"):
-                db_type = "sqlite"
-                # For SQLite, the database name is the file path
-                import re
-
-                match = re.search(r"sqlite:///(.+)$", conn_string)
-                if match:
-                    db_name = match.group(1)
-            elif any(x in conn_string.lower() for x in ["mssql", "pyodbc", "pymssql"]):
-                # Handle MS SQL Server connection strings
-                db_type = "mssql"
-                import re
-
-                # Look for database name in different format variations
-                patterns = [
-                    r"database=([^;]+)",
-                    r"initial catalog=([^;]+)",
-                    r"/([^/]+)$",  # For URLs like mssql+pyodbc://server/database
-                ]
-
-                for pattern in patterns:
-                    match = re.search(pattern, conn_string, re.IGNORECASE)
-                    if match:
-                        db_name = match.group(1)
-                        break
-
-            # We can't determine read/write at the create_engine level
-            # Default to both since we don't know the actual operations
-            return DatabaseInfo(
-                db_name=db_name,
-                connection_string=conn_string,
-                db_type=db_type,
-                is_read=True,  # Assuming engine could be used for either
-                is_write=True,  # Assuming engine could be used for either
-                source_file=source_file,
-            )
-        # Check for session operations
-    if isinstance(node.func, ast.Attribute) and node.func.attr in [
-        "query",
-        "execute",
-        "bulk_insert_mappings",
-        "add",
-        "delete",
-    ]:
-        # These are harder to trace back to a specific database without context
-        # We might need more sophisticated analysis here
-        is_read = node.func.attr in ["query"]
-        is_write = node.func.attr in [
-            "execute",
-            "bulk_insert_mappings",
-            "add",
-            "delete",
-        ]
-
-        if is_read or is_write:
-            return DatabaseInfo(
-                db_name="sqlalchemy_db",  # Generic name without more context
-                connection_string=None,
-                db_type="sqlalchemy",
-                is_read=is_read,
-                is_write=is_write,
-                source_file=source_file,
-            )
+        # We can't determine read/write at the create_engine level
+        # Default to both since we don't know the actual operations
+        return DatabaseInfo(
+            db_name=db_name,
+            connection_string=conn_string,
+            db_type=db_type,
+            is_read=True,  # Assuming engine could be used for either
+            is_write=True,  # Assuming engine could be used for either
+            source_file=source_file,
+        )
 
     return None
 
