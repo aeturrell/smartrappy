@@ -74,6 +74,10 @@ def get_pandas_file_info(node: ast.Call, source_file: str) -> Optional[FileInfo]
         if hasattr(node.func.value, "id"):
             # Direct pandas import calls (pd.read_csv, etc.)
             if node.func.value.id == "pd":
+                # Skip SQL-related functions that don't read files
+                if node.func.attr in ["read_sql", "read_sql_query", "read_sql_table"]:
+                    return None
+
                 if not (len(node.args) > 0 and isinstance(node.args[0], ast.Str)):
                     return None
 
@@ -96,6 +100,10 @@ def get_pandas_file_info(node: ast.Call, source_file: str) -> Optional[FileInfo]
         # DataFrame method calls (df.to_csv, etc.)
         method = node.func.attr
         if method.startswith("to_"):
+            # Skip to_sql method as it writes to a database, not a file
+            if method == "to_sql":
+                return None
+
             if not (len(node.args) > 0 and isinstance(node.args[0], ast.Str)):
                 return None
 
