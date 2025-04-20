@@ -80,11 +80,11 @@ def main(repo_path, output, format_type, all_formats):
 
     \b
     # Analyse specific project with graphviz output
-    smartrappy /path/to/project -f graphviz -o /path/to/output/analysis
+    smartrappy /path/to/project --formnat graphviz --output /path/to/output/analysis
 
     \b
     # Generate all output formats
-    smartrappy /path/to/project --all-formats -o /path/to/output/analysis
+    smartrappy /path/to/project --all-formats --output /path/to/output/analysis
     """
     try:
         # Analyse the project
@@ -108,9 +108,7 @@ def main(repo_path, output, format_type, all_formats):
                     # Generate default output path if none provided
                     if output is None:
                         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                        base_output = os.path.join(
-                            repo_path, f"smartrappy_analysis_{timestamp}"
-                        )
+                        base_output = f"smartrappy_analysis_{timestamp}"
                     else:
                         base_output = output
 
