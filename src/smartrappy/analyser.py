@@ -37,16 +37,45 @@ def get_mode_properties(mode: str) -> tuple[bool, bool]:
     return mode_map.get(base_mode, (False, False))
 
 
+def extract_string_from_node(node: ast.AST) -> Optional[str]:
+    """
+    Extract a string from an AST node, handling both string literals and Path() calls.
+
+    Args:
+        node: An AST node that might represent a string or Path
+
+    Returns:
+        The extracted string, or None if extraction wasn't possible
+    """
+    # Handle direct string literals
+    if isinstance(node, ast.Str):
+        return node.s
+
+    # Handle Path() calls - Path("some/path") or pathlib.Path("some/path")
+    if isinstance(node, ast.Call):
+        # Check if it's a Path constructor call
+        if (isinstance(node.func, ast.Name) and node.func.id == "Path") or (
+            isinstance(node.func, ast.Attribute) and node.func.attr == "Path"
+        ):
+            # Extract the path string from the first argument
+            if len(node.args) > 0:
+                return extract_string_from_node(node.args[0])
+
+    return None
+
+
 def get_open_file_info(node: ast.Call, source_file: str) -> Optional[FileInfo]:
     """Extract file information from an open() function call."""
     if not (isinstance(node.func, ast.Name) and node.func.id == "open"):
         return None
 
-    # Get filename from first argument
-    if not (len(node.args) > 0 and isinstance(node.args[0], ast.Str)):
+    # Get filename from first argument, supporting both strings and Path objects
+    if not len(node.args) > 0:
         return None
 
-    filename = node.args[0].s
+    filename = extract_string_from_node(node.args[0])
+    if not filename:
+        return None
 
     # Default mode is 'r'
     mode = "r"
@@ -78,10 +107,13 @@ def get_pandas_file_info(node: ast.Call, source_file: str) -> Optional[FileInfo]
                 if node.func.attr in ["read_sql", "read_sql_query", "read_sql_table"]:
                     return None
 
-                if not (len(node.args) > 0 and isinstance(node.args[0], ast.Str)):
+                if not len(node.args) > 0:
                     return None
 
-                filename = node.args[0].s
+                filename = extract_string_from_node(node.args[0])
+                if not filename:
+                    return None
+
                 method = node.func.attr
 
                 is_read = method.startswith("read_")
@@ -104,10 +136,13 @@ def get_pandas_file_info(node: ast.Call, source_file: str) -> Optional[FileInfo]
             if method == "to_sql":
                 return None
 
-            if not (len(node.args) > 0 and isinstance(node.args[0], ast.Str)):
+            if not len(node.args) > 0:
                 return None
 
-            filename = node.args[0].s
+            filename = extract_string_from_node(node.args[0])
+            if not filename:
+                return None
+
             return FileInfo(
                 filename=filename, is_read=False, is_write=True, source_file=source_file
             )
@@ -133,13 +168,16 @@ def get_matplotlib_file_info(node: ast.Call, source_file: str) -> Optional[FileI
     filename = None
 
     # Check positional argument
-    if len(node.args) > 0 and isinstance(node.args[0], ast.Str):
-        filename = node.args[0].s
+    if len(node.args) > 0:
+        filename = extract_string_from_node(node.args[0])
 
     # Check for fname keyword argument
-    for keyword in node.keywords:
-        if keyword.arg == "fname" and isinstance(keyword.value, ast.Str):
-            filename = keyword.value.s
+    if not filename:
+        for keyword in node.keywords:
+            if keyword.arg == "fname":
+                filename = extract_string_from_node(keyword.value)
+                if filename:
+                    break
 
     if not filename:
         return None
@@ -345,11 +383,6 @@ class DatabaseOperationFinder(ast.NodeVisitor):
             if conn_var and conn_var in self.sqlalchemy_engines:
                 orig_db_info = self.sqlalchemy_engines[conn_var]
 
-                # # Get table name if available
-                # table_name = "unknown_table"
-                # if len(node.args) > 0 and isinstance(node.args[0], ast.Str):
-                #     table_name = node.args[0].s
-
                 # Create a new operation with write access only
                 write_db_info = DatabaseInfo(
                     db_name=orig_db_info.db_name,
@@ -365,11 +398,6 @@ class DatabaseOperationFinder(ast.NodeVisitor):
             elif conn_var and conn_var in self.connection_variables:
                 # We found a to_sql operation using a known connection
                 orig_db_info = self.connection_variables[conn_var]
-
-                # # Get table name if available
-                # table_name = "unknown_table"
-                # if len(node.args) > 0 and isinstance(node.args[0], ast.Str):
-                #     table_name = node.args[0].s
 
                 # Create a new operation with write access only
                 write_db_info = DatabaseInfo(
@@ -631,8 +659,11 @@ def get_direct_db_driver_info(
         elif node.func.value.id == "sqlite3":
             db_type = "sqlite"
             # SQLite databases are files, check for database path
-            if len(node.args) > 0 and isinstance(node.args[0], ast.Str):
-                db_name = node.args[0].s
+            if len(node.args) > 0:
+                # Support both string literals and Path objects for SQLite
+                filename = extract_string_from_node(node.args[0])
+                if filename:
+                    db_name = filename
         elif node.func.value.id in ["pyodbc", "pymssql"]:
             db_type = "mssql"
             db_name = "mssql_db"
@@ -659,10 +690,10 @@ def get_direct_db_driver_info(
 
         # Check for database parameter in keywords
         for keyword in node.keywords:
-            if keyword.arg in ["database", "db", "dbname"] and isinstance(
-                keyword.value, ast.Str
-            ):
-                db_name = keyword.value.s
+            if keyword.arg in ["database", "db", "dbname"]:
+                db_param = extract_string_from_node(keyword.value)
+                if db_param:
+                    db_name = db_param
 
     return DatabaseInfo(
         db_name=db_name,
