@@ -36,6 +36,7 @@ dev = [
     "xdoctest[colors]>=1.2.0",
     "ipykernel>=6.29.5",
     "pydoclint>=0.6.0",
+    "typeguard>=4.4.2",
 ]
 
 [project.scripts]

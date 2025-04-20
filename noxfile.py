@@ -116,7 +116,7 @@ def coverage(session: nox.Session) -> None:
     session.run("coverage", *args, "-i")
 
 
-@nox.session(name="pre-commit", python="3.9", venv_backend="uv")
+@nox.session(name="pre-commit", python=python_versions[0], venv_backend="uv")
 def precommit(session: nox.Session) -> None:
     """Lint using pre-commit."""
     args = session.posargs or ["run", "--all-files", "--show-diff-on-failure"]
