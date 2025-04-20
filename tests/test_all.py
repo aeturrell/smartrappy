@@ -3,7 +3,7 @@
 import tempfile
 from pathlib import Path
 
-from smartrappy import analyze_project
+from smartrappy import analyse_project
 from smartrappy.reporters import (
     ConsoleReporter,
     GraphvizReporter,
@@ -12,10 +12,10 @@ from smartrappy.reporters import (
 )
 
 
-def test_analyze_project():
-    """Test that analyze_project works with the test directories."""
-    # Analyze the test set
-    model = analyze_project("tests/test_set_one")
+def test_analyse_project():
+    """Test that analyse_project works with the test directories."""
+    # Analyse the test set
+    model = analyse_project("tests/test_set_one")
 
     # Check that the model contains expected data
     assert len(model.nodes) > 0
@@ -23,15 +23,15 @@ def test_analyze_project():
     assert "data.csv" in model.file_operations
 
     # Test with a different directory
-    model2 = analyze_project("tests/test_set_two")
+    model2 = analyse_project("tests/test_set_two")
     assert len(model2.nodes) > 0
     assert "data/input.csv" in model2.file_operations
 
 
 def test_reporters():
     """Test that all reporters can generate output."""
-    # Analyze a test set
-    model = analyze_project("tests/test_set_one")
+    # Analyse a test set
+    model = analyse_project("tests/test_set_one")
 
     with tempfile.TemporaryDirectory() as tmpdir:
         # Test console reporter
@@ -62,6 +62,6 @@ def test_reporters():
 
 if __name__ == "__main__":
     # Simple manual test
-    test_analyze_project()
+    test_analyse_project()
     test_reporters()
     print("All tests passed!")

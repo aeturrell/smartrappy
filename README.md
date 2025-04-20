@@ -4,7 +4,7 @@
 
 smartrappy .
 
-## Generate graphviz visualization
+## Generate graphviz visualisation
 
 smartrappy /path/to/project -f graphviz -o analysis
 

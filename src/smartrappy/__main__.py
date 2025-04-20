@@ -7,7 +7,7 @@ from datetime import datetime
 import click
 
 from smartrappy import __version__
-from smartrappy.analyzer import analyze_project
+from smartrappy.analyser import analyse_project
 from smartrappy.reporters import get_reporter
 
 
@@ -67,19 +67,19 @@ def validate_output_path(ctx, param, value):
 )
 @click.version_option(version=__version__, prog_name="smartrappy")
 def main(repo_path, output, format_type, all_formats):
-    """Smart reproducible analytical pipeline execution analyzer.
+    """Smart reproducible analytical pipeline execution analyser.
 
-    Analyzes Python projects to create a visual representation of file operations
+    Analyses Python projects to create a visual representation of file operations
     and module dependencies.
 
     Examples:
 
     \b
-    # Analyze current directory with default console output
+    # Analyse current directory with default console output
     smartrappy .
 
     \b
-    # Analyze specific project with graphviz output
+    # Analyse specific project with graphviz output
     smartrappy /path/to/project -f graphviz -o /path/to/output/analysis
 
     \b
@@ -87,9 +87,9 @@ def main(repo_path, output, format_type, all_formats):
     smartrappy /path/to/project --all-formats -o /path/to/output/analysis
     """
     try:
-        # Analyze the project
-        click.echo(f"Analyzing project at: {repo_path}")
-        model = analyze_project(repo_path)
+        # Analyse the project
+        click.echo(f"Analysing project at: {repo_path}")
+        model = analyse_project(repo_path)
 
         # Generate reports
         formats_to_generate = (
@@ -138,18 +138,18 @@ def main(repo_path, output, format_type, all_formats):
         sys.exit(1)
 
 
-def analyze_and_visualize(folder_path: str, output_path: str = None) -> None:
+def analyse_and_visualise(folder_path: str, output_path: str = None) -> None:
     """
     Legacy wrapper for backward compatibility.
 
-    Analyze Python files and create visualizations.
+    Analyse Python files and create visualisations.
 
     Args:
-        folder_path: Path to the folder to analyze
+        folder_path: Path to the folder to analyse
         output_path: Path for the output files
     """
     try:
-        model = analyze_project(folder_path)
+        model = analyse_project(folder_path)
 
         # Generate console report
         console_reporter = get_reporter("console")

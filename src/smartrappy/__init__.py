@@ -1,7 +1,7 @@
 """
 smartrappy
 ------------------------------------
-Smart reproducible analytical pipeline visualisation.
+Smart reproducible analytical pipeline execution
 """
 
 from importlib.metadata import PackageNotFoundError, version
@@ -11,9 +11,10 @@ try:
 except PackageNotFoundError:
     __version__ = "unknown"
 
-# Import main functionality for ease of use
-from smartrappy.__main__ import analyze_and_visualize
-from smartrappy.analyzer import analyze_project
+# Import core components first
+# Import CLI functions last to avoid circular imports
+from smartrappy.__main__ import analyse_and_visualise
+from smartrappy.analyser import analyse_project
 from smartrappy.models import (
     Edge,
     FileInfo,
@@ -34,8 +35,8 @@ from smartrappy.reporters import (
 
 __all__ = [
     # Main functions
-    "analyze_project",
-    "analyze_and_visualize",
+    "analyse_project",
+    "analyse_and_visualise",
     # Models
     "Edge",
     "FileInfo",

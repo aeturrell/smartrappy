@@ -1,9 +1,8 @@
-"""Code analyzer for smartrappy."""
+"""Code analyser for smartrappy."""
 
 import ast
 import os
-from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple
+from typing import List, Optional, Set, Tuple
 
 from smartrappy.models import FileInfo, ModuleImport, ProjectModel
 
@@ -206,13 +205,13 @@ def get_project_modules(folder_path: str) -> Set[str]:
     modules = set()
     for root, dirs, files in os.walk(folder_path):
         # Skip hidden directories (starting with .)
-        dirs[:] = [d for d in dirs if not d.startswith('.')]
-        
+        dirs[:] = [d for d in dirs if not d.startswith(".")]
+
         for file in files:
             # Skip hidden files (starting with .)
-            if file.startswith('.') or not file.endswith(".py"):
+            if file.startswith(".") or not file.endswith(".py"):
                 continue
-                
+
             # Get module name from file path
             rel_path = os.path.relpath(os.path.join(root, file), folder_path)
             module_name = os.path.splitext(rel_path)[0].replace(os.path.sep, ".")
@@ -220,10 +219,10 @@ def get_project_modules(folder_path: str) -> Set[str]:
     return modules
 
 
-def analyze_python_file(
+def analyse_python_file(
     file_path: str, project_modules: Set[str]
 ) -> Tuple[List[FileInfo], List[ModuleImport]]:
-    """Analyze a single Python file for file operations and imports."""
+    """Analyse a single Python file for file operations and imports."""
     try:
         with open(file_path, "r", encoding="utf-8") as f:
             tree = ast.parse(f.read())
@@ -243,42 +242,41 @@ def analyze_python_file(
         return [], []
 
 
-def analyze_project(folder_path: str) -> ProjectModel:
+def analyse_project(folder_path: str) -> ProjectModel:
     """
-    Analyze a project folder and build a comprehensive project model.
-    
+    Analyse a project folder and build a comprehensive project model.
+
     Args:
-        folder_path: Path to the folder to analyze
-        
+        folder_path: Path to the folder to analyse
+
     Returns:
         A ProjectModel containing the complete analysis results
     """
     model = ProjectModel(folder_path)
     project_modules = get_project_modules(folder_path)
-    
-    # Analyze all Python files in the project
+
+    # Analyse all Python files in the project
     for root, dirs, files in os.walk(folder_path):
         # Skip hidden directories (starting with .)
-        dirs[:] = [d for d in dirs if not d.startswith('.')]
-        
+        dirs[:] = [d for d in dirs if not d.startswith(".")]
+
         for file in files:
             # Skip hidden files (starting with .)
-            if file.startswith('.') or not file.endswith(".py"):
+            if file.startswith(".") or not file.endswith(".py"):
                 continue
-                
+
             file_path = os.path.join(root, file)
-            operations, imports = analyze_python_file(file_path, project_modules)
-            
+            operations, imports = analyse_python_file(file_path, project_modules)
+
             # Add file operations to the model
             for op in operations:
                 model.add_file_operation(op)
-            
+
             # Add imports to the model
-            rel_path = os.path.relpath(file_path, folder_path)
             for imp in imports:
                 model.add_import(imp)
-    
+
     # Build the graph representation
     model.build_graph()
-    
+
     return model
