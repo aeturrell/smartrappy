@@ -10,6 +10,7 @@ site:
 		uv run quartodoc build --config docs/_quarto.yml
 		cd docs; uv run quarto render --execute
 		rm docs/.gitignore
+		uv run python create_readme.py
 		uv run nbstripout docs/*.ipynb
 		uv run pre-commit run --all-files
 
@@ -20,5 +21,6 @@ publish:
 		cd docs;uv run quarto render --execute
 		cd docs;uv run quarto publish gh-pages --no-render
 		rm docs/.gitignore
+		uv run python create_readme.py
 		uv run nbstripout docs/*.ipynb
 		uv run pre-commit run --all-files

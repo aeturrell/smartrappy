@@ -38,5 +38,8 @@ quartodoc:
       contents:
         # the functions being documented in the package.
         # you can refer to anything: class methods, modules, etc..
-        - function
-        - class
+        - analyse_project
+        - ConsoleReporter
+        - JsonReporter
+        - MermaidReporter
+        - GraphvizReporter

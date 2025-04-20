@@ -1,0 +1,40 @@
+<svg viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg">
+  <!-- Input nodes (pink) -->
+  <rect x="80" y="30" width="70" height="40" rx="5" fill="#ffb6c1" stroke="#333" stroke-width="2"/>
+  <rect x="250" y="30" width="70" height="40" rx="5" fill="#ffb6c1" stroke="#333" stroke-width="2"/>
+  
+  <!-- Processing nodes (green) -->
+  <rect x="80" y="120" width="70" height="40" rx="5" fill="#90ee90" stroke="#333" stroke-width="2"/>
+  <rect x="165" y="120" width="70" height="40" rx="5" fill="#90ee90" stroke="#333" stroke-width="2"/>
+  <rect x="250" y="120" width="70" height="40" rx="5" fill="#90ee90" stroke="#333" stroke-width="2"/>
+  
+  <!-- Final processing node (green) -->
+  <rect x="165" y="210" width="70" height="40" rx="5" fill="#90ee90" stroke="#333" stroke-width="2"/>
+  
+  <!-- Output node (pink) -->
+  <rect x="165" y="270" width="70" height="30" rx="5" fill="#ffb6c1" stroke="#333" stroke-width="2"/>
+  
+  <!-- Arrows -->
+  <!-- Vertical input to processing -->
+  <path d="M115 70 L115 120" fill="none" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <path d="M285 70 L285 120" fill="none" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+  
+  <!-- Diagonal input to middle processing -->
+  <path d="M150 50 L180 120" fill="none" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <path d="M250 50 L220 120" fill="none" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+  
+  <!-- Processing to final processing -->
+  <path d="M115 160 L175 210" fill="none" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <path d="M200 160 L200 210" fill="none" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <path d="M285 160 L225 210" fill="none" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+  
+  <!-- Final processing to output -->
+  <path d="M200 250 L200 270" fill="none" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+  
+  <!-- Arrow definition -->
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#333"/>
+    </marker>
+  </defs>
+</svg>

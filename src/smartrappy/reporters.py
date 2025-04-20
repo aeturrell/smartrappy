@@ -159,7 +159,7 @@ class ConsoleReporter(Reporter):
 
 
 class GraphvizReporter(Reporter):
-    """Generate a Graphviz visualisation of the project model."""
+    """Generate a Graphviz visualisation of the project model. Exports as PDF"""
 
     def generate_report(
         self, model: ProjectModel, output_path: Optional[str] = None

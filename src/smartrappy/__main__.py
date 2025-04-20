@@ -136,31 +136,5 @@ def main(repo_path, output, format_type, all_formats):
         sys.exit(1)
 
 
-def analyse_and_visualise(folder_path: str, output_path: str = None) -> None:
-    """
-    Legacy wrapper for backward compatibility.
-
-    Analyse Python files and create visualisations.
-
-    Args:
-        folder_path: Path to the folder to analyse
-        output_path: Path for the output files
-    """
-    try:
-        model = analyse_project(folder_path)
-
-        # Generate console report
-        console_reporter = get_reporter("console")
-        console_reporter.generate_report(model)
-
-        # Generate graphviz report if output path is provided
-        if output_path:
-            graphviz_reporter = get_reporter("graphviz")
-            graphviz_reporter.generate_report(model, output_path)
-
-    except Exception as e:
-        print(f"Error during analysis: {str(e)}")
-
-
 if __name__ == "__main__":
     main(prog_name="smartrappy")  # pragma: no cover

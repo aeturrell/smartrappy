@@ -13,7 +13,6 @@ except PackageNotFoundError:
 
 # Import core components first
 # Import CLI functions last to avoid circular imports
-from smartrappy.__main__ import analyse_and_visualise
 from smartrappy.analyser import analyse_project
 from smartrappy.models import (
     Edge,
@@ -36,7 +35,6 @@ from smartrappy.reporters import (
 __all__ = [
     # Main functions
     "analyse_project",
-    "analyse_and_visualise",
     # Models
     "Edge",
     "FileInfo",
