@@ -80,6 +80,9 @@ jobs:
         with:
           version: 1.6.39
 
+      - name: install graphviz
+        uses: ts-graphviz/setup-graphviz@v2
+
       - name: Build autodocs
         run: uv run quartodoc build --config docs/_quarto.yml
 

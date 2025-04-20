@@ -40,6 +40,9 @@ jobs:
           # Install a specific version of uv.
           version: "0.5.2"
 
+      - name: install graphviz
+        uses: ts-graphviz/setup-graphviz@v2
+
       - name: Compute pre-commit cache key
         if: matrix.session == 'pre-commit'
         id: pre-commit-cache
