@@ -67,4 +67,6 @@ def convert_notebook_to_markdown(
 
 if __name__ == "__main__":
     # Example usage
-    convert_notebook_to_markdown(Path("docs/index.ipynb"), Path("README.md"), num_cells=3)
+    convert_notebook_to_markdown(
+        Path("docs/index.ipynb"), Path("README.md"), num_cells=3
+    )

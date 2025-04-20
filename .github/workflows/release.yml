@@ -4,6 +4,7 @@ name: Release
 permissions:
   contents: write
   pages: write
+  id-token: write
 
 on:
   push:
@@ -15,6 +16,7 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
+    environment: pypi
     steps:
       - name: Check out the repository
         uses: actions/checkout@v4
@@ -24,7 +26,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5.4.0
         with:
-          python-version: "3.9"
+          python-version: "3.10"
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
@@ -58,18 +60,7 @@ jobs:
 
       - name: Publish package on PyPI
         if: steps.check-version.outputs.tag
-        uses: pypa/gh-action-pypi-publish@v1.12.4
-        with:
-          user: __token__
-          password: ${{ secrets.PYPI_TOKEN }}
-
-      - name: Publish package on TestPyPI
-        if: "! steps.check-version.outputs.tag"
-        uses: pypa/gh-action-pypi-publish@v1.12.4
-        with:
-          user: __token__
-          password: ${{ secrets.TEST_PYPI_TOKEN }}
-          repository-url: https://test.pypi.org/legacy/
+        uses: pypa/gh-action-pypi-publish@release/v1
 
       - name: Publish the release notes
         uses: release-drafter/release-drafter@v6.1.0
