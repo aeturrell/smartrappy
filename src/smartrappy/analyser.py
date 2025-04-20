@@ -345,10 +345,10 @@ class DatabaseOperationFinder(ast.NodeVisitor):
             if conn_var and conn_var in self.sqlalchemy_engines:
                 orig_db_info = self.sqlalchemy_engines[conn_var]
 
-                # Get table name if available
-                table_name = "unknown_table"
-                if len(node.args) > 0 and isinstance(node.args[0], ast.Str):
-                    table_name = node.args[0].s
+                # # Get table name if available
+                # table_name = "unknown_table"
+                # if len(node.args) > 0 and isinstance(node.args[0], ast.Str):
+                #     table_name = node.args[0].s
 
                 # Create a new operation with write access only
                 write_db_info = DatabaseInfo(
