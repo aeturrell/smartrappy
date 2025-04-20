@@ -4,7 +4,13 @@ import ast
 import os
 from typing import List, Optional, Set, Tuple
 
-from smartrappy.models import DatabaseInfo, FileInfo, ModuleImport, ProjectModel
+from smartrappy.models import (
+    DatabaseInfo,
+    FileInfo,
+    ModuleImport,
+    NodeType,
+    ProjectModel,
+)
 
 
 def get_mode_properties(mode: str) -> tuple[bool, bool]:
@@ -765,35 +771,135 @@ def analyse_project(folder_path: str) -> ProjectModel:
     Returns:
         A ProjectModel containing the complete analysis results
     """
+    # Import qmd_parser here to avoid circular imports
+    from smartrappy.qmd_parser import analyse_qmd_file
+
     model = ProjectModel(folder_path)
     project_modules = get_project_modules(folder_path)
 
-    # Analyse all Python files in the project
+    # Analyse all Python and QMD files in the project
     for root, dirs, files in os.walk(folder_path):
         # Skip hidden directories (starting with .)
         dirs[:] = [d for d in dirs if not d.startswith(".")]
 
         for file in files:
             # Skip hidden files (starting with .)
-            if file.startswith(".") or not file.endswith(".py"):
+            if file.startswith("."):
                 continue
 
             file_path = os.path.join(root, file)
-            operations, imports, db_operations = analyse_python_file(
-                file_path, project_modules
-            )
 
-            # Add file operations to the model
-            for op in operations:
-                model.add_file_operation(op)
+            if file.endswith(".py"):
+                operations, imports, db_operations = analyse_python_file(
+                    file_path, project_modules
+                )
 
-            # Add imports to the model
-            for imp in imports:
-                model.add_import(imp)
+                # Add file operations to the model
+                for op in operations:
+                    model.add_file_operation(op)
 
-            # Add database operations to the model
-            for db_op in db_operations:
-                model.add_database_operation(db_op)
+                # Add imports to the model
+                for imp in imports:
+                    model.add_import(imp)
+
+                # Add database operations to the model
+                for db_op in db_operations:
+                    model.add_database_operation(db_op)
+
+            # Handle Quarto files
+            elif file.endswith(".qmd"):
+                operations, imports, db_operations = analyse_qmd_file(
+                    file_path,
+                    project_modules,
+                    FileOperationFinder,
+                    ModuleImportFinder,
+                    DatabaseOperationFinder,
+                )
+
+                # Only add QMD document to the model if it has Python operations
+                if operations or imports or db_operations:
+                    # Create a node for the QMD document itself
+                    quarto_name = os.path.basename(file_path)
+                    quarto_node_id = model.add_node(
+                        quarto_name, NodeType.QUARTO_DOCUMENT
+                    )
+
+                    # Add file operations to the model
+                    for op in operations:
+                        model.add_file_operation(op)
+
+                        # We also need to manually add edges since the build_graph method
+                        # only handles .py files by default
+                        file_node_id = model.add_node(
+                            op.filename,
+                            NodeType.DATA_FILE,
+                            {"status": model.file_statuses.get(op.filename, None)},
+                        )
+
+                        if op.is_read:
+                            model.add_edge(file_node_id, quarto_node_id, "read")
+                        if op.is_write:
+                            model.add_edge(quarto_node_id, file_node_id, "write")
+
+                    # Add imports to the model
+                    for imp in imports:
+                        model.add_import(imp)
+
+                        # Add edges for imports
+                        base_module_name = os.path.basename(
+                            imp.module_name.replace(".", "/")
+                        )
+                        # if (
+                        #     not base_module_name.endswith(".py")
+                        #     and "." not in base_module_name
+                        # ):
+                        #     module_display_name = f"{base_module_name}.py"
+                        # else:
+                        #     module_display_name = base_module_name
+                        module_display_name = base_module_name
+
+                        if imp.is_from_import and imp.imported_names:
+                            for imported_name in imp.imported_names:
+                                detailed_name = f"{module_display_name}:{imported_name}"
+                                node_type = (
+                                    NodeType.INTERNAL_MODULE
+                                    if imp.is_internal
+                                    else NodeType.EXTERNAL_MODULE
+                                )
+                                import_node_id = model.add_node(
+                                    detailed_name,
+                                    node_type,
+                                    {
+                                        "module": module_display_name,
+                                        "imported_name": imported_name,
+                                        "is_from_import": True,
+                                    },
+                                )
+                                model.add_edge(import_node_id, quarto_node_id, "import")
+                        else:
+                            node_type = (
+                                NodeType.INTERNAL_MODULE
+                                if imp.is_internal
+                                else NodeType.EXTERNAL_MODULE
+                            )
+                            import_node_id = model.add_node(
+                                module_display_name, node_type
+                            )
+                            model.add_edge(import_node_id, quarto_node_id, "import")
+
+                    # Add database operations to the model
+                    for db_op in db_operations:
+                        model.add_database_operation(db_op)
+
+                        # Add edges for database operations
+                        db_node_id = model.add_node(
+                            db_op.db_name, NodeType.DATABASE, {"db_type": db_op.db_type}
+                        )
+
+                        if db_op.is_read:
+                            model.add_edge(db_node_id, quarto_node_id, "read")
+                        if db_op.is_write:
+                            model.add_edge(quarto_node_id, db_node_id, "write")
 
     # Build the graph representation
     model.build_graph()

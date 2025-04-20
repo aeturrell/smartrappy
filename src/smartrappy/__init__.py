@@ -24,6 +24,7 @@ from smartrappy.models import (
     NodeType,
     ProjectModel,
 )
+from smartrappy.qmd_parser import analyse_qmd_file, extract_python_chunks
 from smartrappy.reporters import (
     ConsoleReporter,
     GraphvizReporter,
@@ -36,6 +37,8 @@ from smartrappy.reporters import (
 __all__ = [
     # Main functions
     "analyse_project",
+    "analyse_qmd_file",
+    "extract_python_chunks",
     # Models
     "DatabaseInfo",  # New export
     "Edge",

@@ -52,7 +52,8 @@ class NodeType:
     DATA_FILE = "data_file"
     EXTERNAL_MODULE = "external_module"
     INTERNAL_MODULE = "internal_module"
-    DATABASE = "database"  # New node type for databases
+    DATABASE = "database"
+    QUARTO_DOCUMENT = "quarto_document"  # New node type for Quarto documents
 
 
 class Node(NamedTuple):
@@ -230,11 +231,11 @@ class ProjectModel:
                 # Get base module name without path
                 base_module_name = os.path.basename(imp.module_name.replace(".", "/"))
                 # Add .py suffix if it's a Python file and doesn't already have it
-                if not base_module_name.endswith(".py") and "." not in base_module_name:
-                    module_display_name = f"{base_module_name}.py"
-                else:
-                    module_display_name = base_module_name
-
+                # if not base_module_name.endswith(".py") and "." not in base_module_name:
+                #     module_display_name = f"{base_module_name}.py"
+                # else:
+                #     module_display_name = base_module_name
+                module_display_name = base_module_name
                 # Create separate nodes for each imported item if it's a from-import
                 if imp.is_from_import and imp.imported_names:
                     for imported_name in imp.imported_names:
