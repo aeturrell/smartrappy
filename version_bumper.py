@@ -10,6 +10,14 @@ import toml
 
 
 def bump_version(part: Literal["major", "minor", "patch"] = "patch") -> None:
+    """Bump version in pyproject.toml file.
+
+    Args:
+        part (Literal["major", "minor", "patch"], optional): Version part to increment. Defaults to "patch".
+
+    Raises:
+        ValueError: If part is not 'major', 'minor', or 'patch'.
+    """
     file_path = "pyproject.toml"
 
     with open(file_path, "r") as f:

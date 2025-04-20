@@ -1,16 +1,15 @@
 [project]
 name = "smartrappy"
 version = "0.0.1"
-description = "Smart reproducible analytical pipeline execution"
+description = "Smart reproducible analytical pipeline visualisation."
 authors = [{name="Arthur Turrell", email="anon@anon.gmail.com"}]
 readme = "README.md"
-license = {file = "LICENSE"}
+license = "MIT"
 classifiers = [
     "Development Status :: 2 - Pre-Alpha",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.10",
-    "License :: OSI Approved :: MIT License",
 ]
 requires-python = ">=3.10"
 dependencies = [
@@ -39,6 +38,11 @@ dev = [
     "pydoclint>=0.6.0",
 ]
 
+[project.scripts]
+smartrappy = "smartrappy.__main__:main"
+
+[tool.uv]
+package = true
 
 [tool.mypy]
 strict = false
