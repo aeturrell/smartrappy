@@ -32,6 +32,19 @@ class ModuleImport(NamedTuple):
     is_internal: bool
 
 
+class DatabaseInfo(NamedTuple):
+    """Information about a database operation found in Python code."""
+
+    db_name: str  # Name or identifier of the database
+    connection_string: Optional[str]  # Connection string (if available)
+    db_type: str  # Type of database (e.g., "postgresql", "mysql", "sqlite")
+    is_read: bool  # Whether data is read from the database
+    is_write: bool  # Whether data is written to the database
+    source_file: str  # File containing the database operation
+    conn_var_name: Optional[str] = None  # Connection variable name if applicable
+    uses_conn_var: Optional[str] = None  # If this operation uses a connection variable
+
+
 class NodeType:
     """Enumeration of node types in the project graph."""
 
@@ -39,6 +52,7 @@ class NodeType:
     DATA_FILE = "data_file"
     EXTERNAL_MODULE = "external_module"
     INTERNAL_MODULE = "internal_module"
+    DATABASE = "database"  # New node type for databases
 
 
 class Node(NamedTuple):
@@ -68,6 +82,9 @@ class ProjectModel:
         self.file_operations: Dict[str, List[FileInfo]] = {}
         self.imports: Dict[str, List[ModuleImport]] = {}
         self.file_statuses: Dict[str, FileStatus] = {}
+        self.database_operations: Dict[
+            str, List[DatabaseInfo]
+        ] = {}  # New dictionary to track database operations
 
     def get_node_id(self, name: str, node_type: str) -> str:
         """Generate a consistent node ID based on name and type."""
@@ -138,8 +155,38 @@ class ProjectModel:
 
         self.imports[import_info.source_file].append(import_info)
 
+    def add_database_operation(self, operation: DatabaseInfo) -> None:
+        """Add a database operation to the model, handling connection variables."""
+        db_name_to_use = operation.db_name
+
+        # If this operation uses a connection variable, prioritize its database name
+        if hasattr(operation, "uses_conn_var") and operation.uses_conn_var:
+            conn_var = operation.uses_conn_var
+            # Look through existing operations to find the referenced connection
+            for existing_ops in self.database_operations.values():
+                for op in existing_ops:
+                    if hasattr(op, "conn_var_name") and op.conn_var_name == conn_var:
+                        db_name_to_use = op.db_name
+                        break
+
+        # Now add the operation under the appropriate database name
+        if db_name_to_use not in self.database_operations:
+            self.database_operations[db_name_to_use] = []
+
+        # Prevent duplicate operations
+        for op in self.database_operations[db_name_to_use]:
+            if (
+                op.source_file == operation.source_file
+                and op.is_read == operation.is_read
+                and op.is_write == operation.is_write
+                and op.db_type == operation.db_type
+            ):
+                return
+
+        self.database_operations[db_name_to_use].append(operation)
+
     def build_graph(self) -> None:
-        """Build the graph representation from file operations and imports."""
+        """Build the graph representation from file operations, database operations, and imports."""
         # Process file operations
         for filename, operations in self.file_operations.items():
             file_node_id = self.add_node(
@@ -156,6 +203,23 @@ class ProjectModel:
                     self.add_edge(file_node_id, script_node_id, "read")
                 if op.is_write:
                     self.add_edge(script_node_id, file_node_id, "write")
+
+        # Process database operations
+        for db_name, operations in self.database_operations.items():
+            db_node_id = self.add_node(
+                db_name,
+                NodeType.DATABASE,
+                {"db_type": operations[0].db_type},  # Use type from first operation
+            )
+
+            for op in operations:
+                script_name = os.path.basename(op.source_file)
+                script_node_id = self.add_node(script_name, NodeType.SCRIPT)
+
+                if op.is_read:
+                    self.add_edge(db_node_id, script_node_id, "read")
+                if op.is_write:
+                    self.add_edge(script_node_id, db_node_id, "write")
 
         # Process imports - create more detailed nodes
         for source_file, imports in self.imports.items():

@@ -34,7 +34,9 @@ class ConsoleReporter(Reporter):
         console = Console()
 
         # Print header
-        console.print("\n[bold cyan]File Operations and Import Analysis[/bold cyan]")
+        console.print(
+            "\n[bold cyan]File Operations, Database Operations, and Import Analysis[/bold cyan]"
+        )
         console.print("=" * 80)
 
         # Print file operations
@@ -52,6 +54,27 @@ class ConsoleReporter(Reporter):
             sources = sorted(set(op.source_file for op in file_ops))
             for source in sources:
                 console.print(f"  - {source}")
+
+        if model.database_operations:
+            console.print("\n[bold purple]💽 Database Operations:[/bold purple]")
+            for db_name, db_ops in sorted(model.database_operations.items()):
+                console.print(f"\n[bold]Database:[/bold] {db_name}")
+                db_type = db_ops[0].db_type  # Get type from first operation
+                console.print(f"[bold]Type:[/bold] {db_type}")
+
+                has_read = any(op.is_read for op in db_ops)
+                has_write = any(op.is_write for op in db_ops)
+                op_type = (
+                    "READ/WRITE"
+                    if has_read and has_write
+                    else ("READ" if has_read else "WRITE")
+                )
+                console.print(f"[bold]Operation:[/bold] {op_type}")
+
+                console.print("[bold]Referenced in:[/bold]")
+                sources = sorted(set(op.source_file for op in db_ops))
+                for source in sources:
+                    console.print(f"  - {source}")
 
         # Print import analysis
         console.print("\n[bold]Module Imports:[/bold]")
@@ -119,12 +142,14 @@ class ConsoleReporter(Reporter):
                 NodeType.EXTERNAL_MODULE: "📦",
                 NodeType.INTERNAL_MODULE: "🔧",
                 NodeType.DATA_FILE: "📄",
+                NodeType.DATABASE: "💽",  # Using the database symbol for database nodes
             }
             colors = {
                 NodeType.SCRIPT: "green",
                 NodeType.EXTERNAL_MODULE: "red",
                 NodeType.INTERNAL_MODULE: "blue",
                 NodeType.DATA_FILE: "magenta",
+                NodeType.DATABASE: "purple",  # Using purple color for database nodes
             }
             return Text(
                 f"{icons.get(node_type, '❓')} {name}",
@@ -141,6 +166,10 @@ class ConsoleReporter(Reporter):
 
             # Add node to tree
             node_tree = parent_tree.add(get_node_style(node.type, node.name))
+
+            # For database nodes, add type information
+            if node.type == NodeType.DATABASE and "db_type" in node.metadata:
+                node_tree.add(Text(f"Type: {node.metadata['db_type']}", "purple"))
 
             # Add dependencies
             for dep_id in sorted(dependencies.get(node_id, set())):
@@ -217,6 +246,18 @@ class GraphvizReporter(Reporter):
                         color="#333333",
                         penwidth="2.0",
                     )
+            elif node.type == NodeType.DATABASE:
+                # Special styling for database nodes
+                db_type = node.metadata.get("db_type", "unknown")
+                label = f"{node.name}\nType: {db_type}"  # Using node.name, not node_id
+                dot.node(
+                    node_id,
+                    label,
+                    fillcolor="#B19CD9",  # Light purple for databases
+                    color="#333333",
+                    penwidth="2.0",
+                    shape="cylinder",  # Database shape
+                )
             elif node.type == NodeType.INTERNAL_MODULE:
                 # Handle imported item nodes with specific style
                 if "imported_name" in node.metadata:
@@ -290,6 +331,7 @@ class MermaidReporter(Reporter):
             "    classDef externalModule fill:#FFA07A,stroke:#333,stroke-width:2px;",
             "    classDef importedItem fill:#ADD8E6,stroke:#333,stroke-width:2px,shape:circle;",
             "    classDef externalImportedItem fill:#FFA07A,stroke:#333,stroke-width:2px,shape:circle;",
+            "    classDef databaseNode fill:#B19CD9,stroke:#333,stroke-width:2px,shape:cylinder;",
             "",
             "    %% Nodes",
         ]
@@ -311,6 +353,11 @@ class MermaidReporter(Reporter):
                         mermaid.append(f'    {node_id}["{label}"]:::missingFile')
                 else:
                     mermaid.append(f'    {node_id}["{node.name}"]:::fileNode')
+            elif node.type == NodeType.DATABASE:
+                # Database nodes with specific styling
+                db_type = node.metadata.get("db_type", "unknown")
+                label = f"{node.name}<br/><small>Type: {db_type}</small>"
+                mermaid.append(f'    {node_id}["{label}"]:::databaseNode')
             elif node.type == NodeType.INTERNAL_MODULE:
                 # Handle imported item nodes with specific style
                 if "imported_name" in node.metadata:
