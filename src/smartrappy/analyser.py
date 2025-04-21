@@ -849,13 +849,6 @@ def analyse_project(folder_path: str) -> ProjectModel:
                         base_module_name = os.path.basename(
                             imp.module_name.replace(".", "/")
                         )
-                        # if (
-                        #     not base_module_name.endswith(".py")
-                        #     and "." not in base_module_name
-                        # ):
-                        #     module_display_name = f"{base_module_name}.py"
-                        # else:
-                        #     module_display_name = base_module_name
                         module_display_name = base_module_name
 
                         if imp.is_from_import and imp.imported_names:

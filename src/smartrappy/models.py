@@ -198,7 +198,14 @@ class ProjectModel:
 
             for op in operations:
                 script_name = os.path.basename(op.source_file)
-                script_node_id = self.add_node(script_name, NodeType.SCRIPT)
+
+                # Check if the file is a QMD file or a Python script
+                node_type = (
+                    NodeType.QUARTO_DOCUMENT
+                    if script_name.endswith(".qmd")
+                    else NodeType.SCRIPT
+                )
+                script_node_id = self.add_node(script_name, node_type)
 
                 if op.is_read:
                     self.add_edge(file_node_id, script_node_id, "read")
@@ -215,7 +222,13 @@ class ProjectModel:
 
             for op in operations:
                 script_name = os.path.basename(op.source_file)
-                script_node_id = self.add_node(script_name, NodeType.SCRIPT)
+                # Check if the file is a QMD file or a Python script
+                node_type = (
+                    NodeType.QUARTO_DOCUMENT
+                    if script_name.endswith(".qmd")
+                    else NodeType.SCRIPT
+                )
+                script_node_id = self.add_node(script_name, node_type)
 
                 if op.is_read:
                     self.add_edge(db_node_id, script_node_id, "read")
@@ -225,17 +238,19 @@ class ProjectModel:
         # Process imports - create more detailed nodes
         for source_file, imports in self.imports.items():
             script_name = os.path.basename(source_file)
-            script_node_id = self.add_node(script_name, NodeType.SCRIPT)
+            # Check if the file is a QMD file or a Python script
+            node_type = (
+                NodeType.QUARTO_DOCUMENT
+                if script_name.endswith(".qmd")
+                else NodeType.SCRIPT
+            )
+            script_node_id = self.add_node(script_name, node_type)
 
             for imp in imports:
                 # Get base module name without path
                 base_module_name = os.path.basename(imp.module_name.replace(".", "/"))
-                # Add .py suffix if it's a Python file and doesn't already have it
-                # if not base_module_name.endswith(".py") and "." not in base_module_name:
-                #     module_display_name = f"{base_module_name}.py"
-                # else:
-                #     module_display_name = base_module_name
                 module_display_name = base_module_name
+
                 # Create separate nodes for each imported item if it's a from-import
                 if imp.is_from_import and imp.imported_names:
                     for imported_name in imp.imported_names:
