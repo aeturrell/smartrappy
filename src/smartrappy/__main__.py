@@ -65,8 +65,13 @@ def validate_output_path(ctx, param, value):
     is_flag=True,
     help="Generate all output formats",
 )
+@click.option(
+    "--internal",
+    is_flag=True,
+    help="Only include internal modules in the visualisation (exclude external packages)",
+)
 @click.version_option(version=__version__, prog_name="smartrappy")
-def main(repo_path, output, format_type, all_formats):
+def main(repo_path, output, format_type, all_formats, internal):
     """Smart reproducible analytical pipeline execution analyser.
 
     Analyses Python projects to create a visual representation of file operations
@@ -85,11 +90,15 @@ def main(repo_path, output, format_type, all_formats):
     \b
     # Generate all output formats
     smartrappy /path/to/project --all-formats --output /path/to/output/analysis
+
+    \b
+    # Show only internal module dependencies
+    smartrappy /path/to/project --internal
     """
     try:
         # Analyse the project
         click.echo(f"Analysing project at: {repo_path}")
-        model = analyse_project(repo_path)
+        model = analyse_project(repo_path, internal_only=internal)
 
         # Generate reports
         formats_to_generate = (
