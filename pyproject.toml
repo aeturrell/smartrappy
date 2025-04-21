@@ -13,9 +13,11 @@ classifiers = [
 ]
 requires-python = ">=3.10"
 dependencies = [
+    "click>=8.1.8",
     "graphviz>=0.20.3",
     "matplotlib>=3.10.0",
     "pandas>=2.2.3",
+    "rich>=13.9.4",
 ]
 
 [dependency-groups]
