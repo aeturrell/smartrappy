@@ -85,8 +85,8 @@ class ConsoleReporter(Reporter):
                 for imp in script_imports:
                     # Get module display name with .py extension for Python modules
                     module_display = os.path.basename(imp.module_name.replace(".", "/"))
-                    if not module_display.endswith(".py") and "." not in module_display:
-                        module_display = f"{module_display}.py"
+                    # if not module_display.endswith(".py") and "." not in module_display:
+                    #     module_display = f"{module_display}.py"
 
                     import_type = "from" if imp.is_from_import else "import"
                     module_type = (
@@ -143,6 +143,7 @@ class ConsoleReporter(Reporter):
                 NodeType.INTERNAL_MODULE: "🔧",
                 NodeType.DATA_FILE: "📄",
                 NodeType.DATABASE: "💽",  # Using the database symbol for database nodes
+                NodeType.QUARTO_DOCUMENT: "📰",  # New icon for Quarto documents
             }
             colors = {
                 NodeType.SCRIPT: "green",
@@ -150,6 +151,7 @@ class ConsoleReporter(Reporter):
                 NodeType.INTERNAL_MODULE: "blue",
                 NodeType.DATA_FILE: "magenta",
                 NodeType.DATABASE: "purple",  # Using purple color for database nodes
+                NodeType.QUARTO_DOCUMENT: "cyan",  # Use cyan color for Quarto documents
             }
             return Text(
                 f"{icons.get(node_type, '❓')} {name}",
@@ -296,6 +298,15 @@ class GraphvizReporter(Reporter):
                         color="#333333",
                         penwidth="2.0",
                     )
+            elif node.type == NodeType.QUARTO_DOCUMENT:
+                # Special styling for Quarto documents
+                dot.node(
+                    node_id,
+                    node.name,
+                    fillcolor="#00CED1",  # Dark turquoise for Quarto docs
+                    color="#333333",
+                    penwidth="2.0",
+                )
 
         # Add edges
         dot.attr("edge", color="#333333")
@@ -326,6 +337,7 @@ class MermaidReporter(Reporter):
             "    %% Style definitions",
             "    classDef scriptNode fill:#90EE90,stroke:#333,stroke-width:2px;",
             "    classDef fileNode fill:#FFB6C1,stroke:#333,stroke-width:2px;",
+            "    classDef quartoNode fill:#00CED1,stroke:#333,stroke-width:2px;",
             "    classDef missingFile fill:#FFB6C1,stroke:#FF0000,stroke-width:3px,stroke-dasharray: 5 5;",
             "    classDef internalModule fill:#ADD8E6,stroke:#333,stroke-width:2px;",
             "    classDef externalModule fill:#FFA07A,stroke:#333,stroke-width:2px;",
@@ -372,6 +384,8 @@ class MermaidReporter(Reporter):
                     )
                 else:
                     mermaid.append(f'    {node_id}["{node.name}"]:::externalModule')
+            elif node.type == NodeType.QUARTO_DOCUMENT:
+                mermaid.append(f'    {node_id}["{node.name}"]:::quartoNode')
 
         mermaid.append("")
         mermaid.append("    %% Relationships")

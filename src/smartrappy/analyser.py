@@ -4,7 +4,13 @@ import ast
 import os
 from typing import List, Optional, Set, Tuple
 
-from smartrappy.models import DatabaseInfo, FileInfo, ModuleImport, ProjectModel
+from smartrappy.models import (
+    DatabaseInfo,
+    FileInfo,
+    ModuleImport,
+    NodeType,
+    ProjectModel,
+)
 
 
 def get_mode_properties(mode: str) -> tuple[bool, bool]:
@@ -37,16 +43,45 @@ def get_mode_properties(mode: str) -> tuple[bool, bool]:
     return mode_map.get(base_mode, (False, False))
 
 
+def extract_string_from_node(node: ast.AST) -> Optional[str]:
+    """
+    Extract a string from an AST node, handling both string literals and Path() calls.
+
+    Args:
+        node: An AST node that might represent a string or Path
+
+    Returns:
+        The extracted string, or None if extraction wasn't possible
+    """
+    # Handle direct string literals
+    if isinstance(node, ast.Str):
+        return node.s
+
+    # Handle Path() calls - Path("some/path") or pathlib.Path("some/path")
+    if isinstance(node, ast.Call):
+        # Check if it's a Path constructor call
+        if (isinstance(node.func, ast.Name) and node.func.id == "Path") or (
+            isinstance(node.func, ast.Attribute) and node.func.attr == "Path"
+        ):
+            # Extract the path string from the first argument
+            if len(node.args) > 0:
+                return extract_string_from_node(node.args[0])
+
+    return None
+
+
 def get_open_file_info(node: ast.Call, source_file: str) -> Optional[FileInfo]:
     """Extract file information from an open() function call."""
     if not (isinstance(node.func, ast.Name) and node.func.id == "open"):
         return None
 
-    # Get filename from first argument
-    if not (len(node.args) > 0 and isinstance(node.args[0], ast.Str)):
+    # Get filename from first argument, supporting both strings and Path objects
+    if not len(node.args) > 0:
         return None
 
-    filename = node.args[0].s
+    filename = extract_string_from_node(node.args[0])
+    if not filename:
+        return None
 
     # Default mode is 'r'
     mode = "r"
@@ -78,10 +113,13 @@ def get_pandas_file_info(node: ast.Call, source_file: str) -> Optional[FileInfo]
                 if node.func.attr in ["read_sql", "read_sql_query", "read_sql_table"]:
                     return None
 
-                if not (len(node.args) > 0 and isinstance(node.args[0], ast.Str)):
+                if not len(node.args) > 0:
                     return None
 
-                filename = node.args[0].s
+                filename = extract_string_from_node(node.args[0])
+                if not filename:
+                    return None
+
                 method = node.func.attr
 
                 is_read = method.startswith("read_")
@@ -104,10 +142,13 @@ def get_pandas_file_info(node: ast.Call, source_file: str) -> Optional[FileInfo]
             if method == "to_sql":
                 return None
 
-            if not (len(node.args) > 0 and isinstance(node.args[0], ast.Str)):
+            if not len(node.args) > 0:
                 return None
 
-            filename = node.args[0].s
+            filename = extract_string_from_node(node.args[0])
+            if not filename:
+                return None
+
             return FileInfo(
                 filename=filename, is_read=False, is_write=True, source_file=source_file
             )
@@ -133,13 +174,16 @@ def get_matplotlib_file_info(node: ast.Call, source_file: str) -> Optional[FileI
     filename = None
 
     # Check positional argument
-    if len(node.args) > 0 and isinstance(node.args[0], ast.Str):
-        filename = node.args[0].s
+    if len(node.args) > 0:
+        filename = extract_string_from_node(node.args[0])
 
     # Check for fname keyword argument
-    for keyword in node.keywords:
-        if keyword.arg == "fname" and isinstance(keyword.value, ast.Str):
-            filename = keyword.value.s
+    if not filename:
+        for keyword in node.keywords:
+            if keyword.arg == "fname":
+                filename = extract_string_from_node(keyword.value)
+                if filename:
+                    break
 
     if not filename:
         return None
@@ -345,11 +389,6 @@ class DatabaseOperationFinder(ast.NodeVisitor):
             if conn_var and conn_var in self.sqlalchemy_engines:
                 orig_db_info = self.sqlalchemy_engines[conn_var]
 
-                # # Get table name if available
-                # table_name = "unknown_table"
-                # if len(node.args) > 0 and isinstance(node.args[0], ast.Str):
-                #     table_name = node.args[0].s
-
                 # Create a new operation with write access only
                 write_db_info = DatabaseInfo(
                     db_name=orig_db_info.db_name,
@@ -365,11 +404,6 @@ class DatabaseOperationFinder(ast.NodeVisitor):
             elif conn_var and conn_var in self.connection_variables:
                 # We found a to_sql operation using a known connection
                 orig_db_info = self.connection_variables[conn_var]
-
-                # # Get table name if available
-                # table_name = "unknown_table"
-                # if len(node.args) > 0 and isinstance(node.args[0], ast.Str):
-                #     table_name = node.args[0].s
 
                 # Create a new operation with write access only
                 write_db_info = DatabaseInfo(
@@ -631,8 +665,11 @@ def get_direct_db_driver_info(
         elif node.func.value.id == "sqlite3":
             db_type = "sqlite"
             # SQLite databases are files, check for database path
-            if len(node.args) > 0 and isinstance(node.args[0], ast.Str):
-                db_name = node.args[0].s
+            if len(node.args) > 0:
+                # Support both string literals and Path objects for SQLite
+                filename = extract_string_from_node(node.args[0])
+                if filename:
+                    db_name = filename
         elif node.func.value.id in ["pyodbc", "pymssql"]:
             db_type = "mssql"
             db_name = "mssql_db"
@@ -659,10 +696,10 @@ def get_direct_db_driver_info(
 
         # Check for database parameter in keywords
         for keyword in node.keywords:
-            if keyword.arg in ["database", "db", "dbname"] and isinstance(
-                keyword.value, ast.Str
-            ):
-                db_name = keyword.value.s
+            if keyword.arg in ["database", "db", "dbname"]:
+                db_param = extract_string_from_node(keyword.value)
+                if db_param:
+                    db_name = db_param
 
     return DatabaseInfo(
         db_name=db_name,
@@ -734,35 +771,128 @@ def analyse_project(folder_path: str) -> ProjectModel:
     Returns:
         A ProjectModel containing the complete analysis results
     """
+    # Import qmd_parser here to avoid circular imports
+    from smartrappy.qmd_parser import analyse_qmd_file
+
     model = ProjectModel(folder_path)
     project_modules = get_project_modules(folder_path)
 
-    # Analyse all Python files in the project
+    # Analyse all Python and QMD files in the project
     for root, dirs, files in os.walk(folder_path):
         # Skip hidden directories (starting with .)
         dirs[:] = [d for d in dirs if not d.startswith(".")]
 
         for file in files:
             # Skip hidden files (starting with .)
-            if file.startswith(".") or not file.endswith(".py"):
+            if file.startswith("."):
                 continue
 
             file_path = os.path.join(root, file)
-            operations, imports, db_operations = analyse_python_file(
-                file_path, project_modules
-            )
 
-            # Add file operations to the model
-            for op in operations:
-                model.add_file_operation(op)
+            if file.endswith(".py"):
+                operations, imports, db_operations = analyse_python_file(
+                    file_path, project_modules
+                )
 
-            # Add imports to the model
-            for imp in imports:
-                model.add_import(imp)
+                # Add file operations to the model
+                for op in operations:
+                    model.add_file_operation(op)
 
-            # Add database operations to the model
-            for db_op in db_operations:
-                model.add_database_operation(db_op)
+                # Add imports to the model
+                for imp in imports:
+                    model.add_import(imp)
+
+                # Add database operations to the model
+                for db_op in db_operations:
+                    model.add_database_operation(db_op)
+
+            # Handle Quarto files
+            elif file.endswith(".qmd"):
+                operations, imports, db_operations = analyse_qmd_file(
+                    file_path,
+                    project_modules,
+                    FileOperationFinder,
+                    ModuleImportFinder,
+                    DatabaseOperationFinder,
+                )
+
+                # Only add QMD document to the model if it has Python operations
+                if operations or imports or db_operations:
+                    # Create a node for the QMD document itself
+                    quarto_name = os.path.basename(file_path)
+                    quarto_node_id = model.add_node(
+                        quarto_name, NodeType.QUARTO_DOCUMENT
+                    )
+
+                    # Add file operations to the model
+                    for op in operations:
+                        model.add_file_operation(op)
+
+                        # We also need to manually add edges since the build_graph method
+                        # only handles .py files by default
+                        file_node_id = model.add_node(
+                            op.filename,
+                            NodeType.DATA_FILE,
+                            {"status": model.file_statuses.get(op.filename, None)},
+                        )
+
+                        if op.is_read:
+                            model.add_edge(file_node_id, quarto_node_id, "read")
+                        if op.is_write:
+                            model.add_edge(quarto_node_id, file_node_id, "write")
+
+                    # Add imports to the model
+                    for imp in imports:
+                        model.add_import(imp)
+
+                        # Add edges for imports
+                        base_module_name = os.path.basename(
+                            imp.module_name.replace(".", "/")
+                        )
+                        module_display_name = base_module_name
+
+                        if imp.is_from_import and imp.imported_names:
+                            for imported_name in imp.imported_names:
+                                detailed_name = f"{module_display_name}:{imported_name}"
+                                node_type = (
+                                    NodeType.INTERNAL_MODULE
+                                    if imp.is_internal
+                                    else NodeType.EXTERNAL_MODULE
+                                )
+                                import_node_id = model.add_node(
+                                    detailed_name,
+                                    node_type,
+                                    {
+                                        "module": module_display_name,
+                                        "imported_name": imported_name,
+                                        "is_from_import": True,
+                                    },
+                                )
+                                model.add_edge(import_node_id, quarto_node_id, "import")
+                        else:
+                            node_type = (
+                                NodeType.INTERNAL_MODULE
+                                if imp.is_internal
+                                else NodeType.EXTERNAL_MODULE
+                            )
+                            import_node_id = model.add_node(
+                                module_display_name, node_type
+                            )
+                            model.add_edge(import_node_id, quarto_node_id, "import")
+
+                    # Add database operations to the model
+                    for db_op in db_operations:
+                        model.add_database_operation(db_op)
+
+                        # Add edges for database operations
+                        db_node_id = model.add_node(
+                            db_op.db_name, NodeType.DATABASE, {"db_type": db_op.db_type}
+                        )
+
+                        if db_op.is_read:
+                            model.add_edge(db_node_id, quarto_node_id, "read")
+                        if db_op.is_write:
+                            model.add_edge(quarto_node_id, db_node_id, "write")
 
     # Build the graph representation
     model.build_graph()
