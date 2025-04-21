@@ -1,0 +1,17 @@
+---
+title: "Example slides"
+subtitle: ""
+format:
+  clean-revealjs:
+    output-file: "paper_slides.html"
+---
+
+# Motivation {background-color="#770077" transition="fade-in fade-out"}
+
+## A slide with a figure
+
+![](/output.png)
+
+## A slide with a latex include
+
+{{< include /equation.tex >}}

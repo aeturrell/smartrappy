@@ -1,5 +1,6 @@
 project:
   type: website
+  execute-dir: project
 
 website:
   title: "smartrappy"

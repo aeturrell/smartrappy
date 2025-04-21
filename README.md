@@ -26,7 +26,7 @@ Smart reproducible analytical pipeline inspection.
 
 ### What does this package do?
 
-**smartrappy** analyses a Python project and infers the directed acyclic graph (DAG) of the code and data dependencies, including the last time any data were refreshed and whether the data exist at all on disk. It is not perfect, and will miss a lot in complex projects: but for simple projects using, say, `pd.read_csv()`, it does a good job of inferring the steps. The inferred DAG is then visualised, and there are several options for doing that—the default being to produce a visualisation in the terminal.
+**smartrappy** analyses a Python project and infers the directed acyclic graph (DAG) of the code and data dependencies, including the last time any data were refreshed and whether the data exist at all on disk. It is not perfect, and will miss a lot in complex projects: but for simple projects using, say, `pd.read_csv()`, it does a good job of inferring the steps. It can also infer writing to and from most databases. The inferred DAG is then visualised, and there are several options for doing that—the default being to produce a visualisation in the terminal.
 
 ### What is **smartrappy** for?
 
