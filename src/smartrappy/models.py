@@ -76,16 +76,15 @@ class Edge(NamedTuple):
 class ProjectModel:
     """A complete model of the project's structure and dependencies."""
 
-    def __init__(self, base_path: str):
+    def __init__(self, base_path: str, internal_only: bool = False):
         self.base_path = Path(base_path)
+        self.internal_only = internal_only
         self.nodes: Dict[str, Node] = {}
         self.edges: List[Edge] = []
         self.file_operations: Dict[str, List[FileInfo]] = {}
         self.imports: Dict[str, List[ModuleImport]] = {}
         self.file_statuses: Dict[str, FileStatus] = {}
-        self.database_operations: Dict[
-            str, List[DatabaseInfo]
-        ] = {}  # New dictionary to track database operations
+        self.database_operations: Dict[str, List[DatabaseInfo]] = {}
 
     def get_node_id(self, name: str, node_type: str) -> str:
         """Generate a consistent node ID based on name and type."""
@@ -247,6 +246,10 @@ class ProjectModel:
             script_node_id = self.add_node(script_name, node_type)
 
             for imp in imports:
+                # Skip external modules if internal_only is True
+                if self.internal_only and not imp.is_internal:
+                    continue
+
                 # Get base module name without path
                 base_module_name = os.path.basename(imp.module_name.replace(".", "/"))
                 module_display_name = base_module_name

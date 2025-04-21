@@ -761,12 +761,13 @@ def analyse_python_file(
         return [], [], []
 
 
-def analyse_project(folder_path: str) -> ProjectModel:
+def analyse_project(folder_path: str, internal_only: bool = False) -> ProjectModel:
     """
     Analyse a project folder and build a comprehensive project model.
 
     Args:
         folder_path: Path to the folder to analyse
+        internal_only: If True, only include internal modules in the visualisation
 
     Returns:
         A ProjectModel containing the complete analysis results
@@ -774,7 +775,7 @@ def analyse_project(folder_path: str) -> ProjectModel:
     # Import qmd_parser here to avoid circular imports
     from smartrappy.qmd_parser import analyse_qmd_file
 
-    model = ProjectModel(folder_path)
+    model = ProjectModel(folder_path, internal_only=internal_only)
     project_modules = get_project_modules(folder_path)
 
     # Analyse all Python and QMD files in the project
@@ -844,6 +845,10 @@ def analyse_project(folder_path: str) -> ProjectModel:
                     # Add imports to the model
                     for imp in imports:
                         model.add_import(imp)
+
+                        # Skip adding edges for external modules if internal_only is True
+                        if model.internal_only and not imp.is_internal:
+                            continue
 
                         # Add edges for imports
                         base_module_name = os.path.basename(
