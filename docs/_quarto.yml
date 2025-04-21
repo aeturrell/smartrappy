@@ -4,7 +4,7 @@ project:
 
 website:
   title: "smartrappy"
-  favicon: favicon.ico
+  favicon: favicon.png
   twitter-card: true
   navbar:
     left:
