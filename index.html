@@ -201,7 +201,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h2 class="anchored" data-anchor-id="introduction">Introduction</h2>
 <section id="what-does-this-package-do" class="level3">
 <h3 class="anchored" data-anchor-id="what-does-this-package-do">What does this package do?</h3>
-<p><strong>smartrappy</strong> analyses a Python project and infers the directed acyclic graph (DAG) of the code and data dependencies, including the last time any data were refreshed and whether the data exist at all on disk. It is not perfect, and will miss a lot in complex projects: but for simple projects using, say, <code>pd.read_csv()</code>, it does a good job of inferring the steps. The inferred DAG is then visualised, and there are several options for doing that—the default being to produce a visualisation in the terminal.</p>
+<p><strong>smartrappy</strong> analyses a Python project and infers the directed acyclic graph (DAG) of the code and data dependencies, including the last time any data were refreshed and whether the data exist at all on disk. It is not perfect, and will miss a lot in complex projects: but for simple projects using, say, <code>pd.read_csv()</code>, it does a good job of inferring the steps. It can also infer writing to and from most databases. The inferred DAG is then visualised, and there are several options for doing that—the default being to produce a visualisation in the terminal.</p>
 </section>
 <section id="what-is-smartrappy-for" class="level3">
 <h3 class="anchored" data-anchor-id="what-is-smartrappy-for">What is <strong>smartrappy</strong> for?</h3>
@@ -232,60 +232,22 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="example-of-output" class="level2">
 <h2 class="anchored" data-anchor-id="example-of-output">Example of output</h2>
+<div class="sourceCode" id="cb4"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">smartrappy</span> .</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div id="cell-4" class="cell" data-execution_count="1">
 <div class="cell-output cell-output-stdout">
-<pre><code>Analysing project at: ../tests/test_set_two
+<pre><code>Usage: smartrappy [OPTIONS] REPO_PATH
+Try 'smartrappy -h' for help.
 
-File Operations and Import Analysis
-================================================================================
-
-File: data/input.csv
-Operation: READ
-Referenced in:
-  - ../tests/test_set_two/data_processing.py
-
-File: data/processed.csv
-Operation: READ/WRITE
-Referenced in:
-  - ../tests/test_set_two/data_processing.py
-  - ../tests/test_set_two/visualisation.py
-
-File: output.png
-Operation: WRITE
-Referenced in:
-  - ../tests/test_set_two/visualisation.py
-
-Module Imports:
-
-Script: data_processing.py
-  - import numpy.py [external]
-  - import pandas.py [external]
-
-Script: visualisation.py
-  - import pyplot.py [external]
-  - import pandas.py [external]
-  - from data_processing → data_processing.py:process_data [internal]
-
-Terminal Visualisation
-📦 Project Dependencies
-┗━━ 📄 output.png
-    ┗━━ 📜 visualisation.py
-        ┣━━ 📄 data/processed.csv
-        ┃   ┗━━ 📜 data_processing.py
-        ┃       ┣━━ 📄 data/input.csv
-        ┃       ┣━━ 📦 numpy.py
-        ┃       ┗━━ 📦 pandas.py
-        ┣━━ 📦 pyplot.py
-        ┣━━ 📦 pandas.py
-        ┗━━ 🔧 data_processing.py:process_data</code></pre>
+Error: Invalid value for 'REPO_PATH': Directory 'tests/test_set_two' does not exist.</code></pre>
 </div>
 </div>
+<p>The graphviz and mermaid options are equally as aesthetically pleasing!</p>
 </section>
 <section id="options-and-configuration" class="level2">
 <h2 class="anchored" data-anchor-id="options-and-configuration">Options and configuration</h2>
 <section id="command-line" class="level3">
 <h3 class="anchored" data-anchor-id="command-line">Command-line</h3>
-<div class="sourceCode" id="cb5"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="ex">smartrappy</span> <span class="pp">[</span><span class="ss">OPTIONS</span><span class="pp">]</span> path/to/your/project</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode" id="cb6"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="ex">smartrappy</span> <span class="pp">[</span><span class="ss">OPTIONS</span><span class="pp">]</span> path/to/your/project</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
 <section id="arguments" class="level3">
 <h3 class="anchored" data-anchor-id="arguments">Arguments</h3>
@@ -300,6 +262,7 @@ Terminal Visualisation
 <li><code>-f, --format [console|graphviz|mermaid|json]</code>: Output format (default: console)</li>
 <li><code>--all-formats</code>: Generate all output formats. Because why shouldn’t you have it all?</li>
 <li><code>-h, --help</code>: Show help message</li>
+<li><code>--internal</code>: Show only internal code dependencies. (default: false)</li>
 <li><code>--version</code>: Show version information</li>
 </ul>
 </section>
@@ -308,7 +271,7 @@ Terminal Visualisation
 <ul>
 <li><code>console</code>: Output in terminal (default)</li>
 <li><code>graphviz</code>: Generate Graphviz visualisation, saved as a PDF</li>
-<li><code>mermaid</code>: Generate Mermaid diagram</li>
+<li><code>mermaid</code>: Generate Mermaid diagram, which can be embedded in Markdown</li>
 <li><code>json</code>: Generate JSON representation, printed to the terminal if no output path is specified</li>
 </ul>
 <p>By default, outputs are stored in the directory from where the <code>smartrappy</code> command is run.</p>
