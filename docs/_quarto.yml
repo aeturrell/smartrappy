@@ -10,6 +10,8 @@ website:
     left:
       - href: index.ipynb
         text: Home
+      - href: output_options.ipynb
+        text: Other output options
       - text: "Reference"
         file: reference/index.qmd
       - contributing.qmd

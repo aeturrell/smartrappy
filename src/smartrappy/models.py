@@ -53,7 +53,8 @@ class NodeType:
     EXTERNAL_MODULE = "external_module"
     INTERNAL_MODULE = "internal_module"
     DATABASE = "database"
-    QUARTO_DOCUMENT = "quarto_document"  # New node type for Quarto documents
+    QUARTO_DOCUMENT = "quarto_document"
+    JUPYTER_NOTEBOOK = "jupyter_notebook"
 
 
 class Node(NamedTuple):
@@ -198,12 +199,13 @@ class ProjectModel:
             for op in operations:
                 script_name = os.path.basename(op.source_file)
 
-                # Check if the file is a QMD file or a Python script
-                node_type = (
-                    NodeType.QUARTO_DOCUMENT
-                    if script_name.endswith(".qmd")
-                    else NodeType.SCRIPT
-                )
+                # Determine node type based on file extension
+                if script_name.endswith(".qmd"):
+                    node_type = NodeType.QUARTO_DOCUMENT
+                elif script_name.endswith(".ipynb"):
+                    node_type = NodeType.JUPYTER_NOTEBOOK
+                else:
+                    node_type = NodeType.SCRIPT
                 script_node_id = self.add_node(script_name, node_type)
 
                 if op.is_read:
@@ -221,12 +223,13 @@ class ProjectModel:
 
             for op in operations:
                 script_name = os.path.basename(op.source_file)
-                # Check if the file is a QMD file or a Python script
-                node_type = (
-                    NodeType.QUARTO_DOCUMENT
-                    if script_name.endswith(".qmd")
-                    else NodeType.SCRIPT
-                )
+                # Determine node type based on file extension
+                if script_name.endswith(".qmd"):
+                    node_type = NodeType.QUARTO_DOCUMENT
+                elif script_name.endswith(".ipynb"):
+                    node_type = NodeType.JUPYTER_NOTEBOOK
+                else:
+                    node_type = NodeType.SCRIPT
                 script_node_id = self.add_node(script_name, node_type)
 
                 if op.is_read:
@@ -237,12 +240,13 @@ class ProjectModel:
         # Process imports - create more detailed nodes
         for source_file, imports in self.imports.items():
             script_name = os.path.basename(source_file)
-            # Check if the file is a QMD file or a Python script
-            node_type = (
-                NodeType.QUARTO_DOCUMENT
-                if script_name.endswith(".qmd")
-                else NodeType.SCRIPT
-            )
+            # Determine node type based on file extension
+            if script_name.endswith(".qmd"):
+                node_type = NodeType.QUARTO_DOCUMENT
+            elif script_name.endswith(".ipynb"):
+                node_type = NodeType.JUPYTER_NOTEBOOK
+            else:
+                node_type = NodeType.SCRIPT
             script_node_id = self.add_node(script_name, node_type)
 
             for imp in imports:
