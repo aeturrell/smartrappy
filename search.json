@@ -4,7 +4,7 @@
     "href": "index.html",
     "title": "smartrappy",
     "section": "",
-    "text": "Smart reproducible analytical pipeline inspection.\n\n\n\nSVG logo of smartrappy\n\n\n          \n  \n\n\n\n\nsmartrappy analyses a Python project and infers the directed acyclic graph (DAG) of the code and data dependencies, including the last time any data were refreshed and whether the data exist at all on disk. It is not perfect, and will miss a lot in complex projects: but for simple projects using, say, pd.read_csv(), it does a good job of inferring the steps. It can also infer writing to and from most databases. The inferred DAG is then visualised, and there are several options for doing that—the default being to produce a visualisation in the terminal.\n\n\n\nsmartrappy is designed to help you understand the dependencies in a project, especially in a context where there may be a lot of legacy code that resembles tangled spaghetti.\n\n\n\nTo use smartrappy as a command-line tool:\nsmartrappy /path/to/your/project\nOr to use it within a Python script:\nfrom smartrappy import analyse_project\nfrom smartrappy.reporters import ConsoleReporter\n\n\nmodel = analyse_project(\"/path/to/your/project\")\nreporter = ConsoleReporter()\nreporter.generate_report(model)\n\n\n\nTo install smartrappy, you can use pip install smartrappy or uv add smartrappy if you are using Astral’s uv. You can also use it as a standalone command-line tool with uv and the uvx command:\nuvx smartrappy path/to/your/project\n\n\n\nYou can find the full documentation for smartrappy at https://aeturrell.github.io/smartrappy/.\n\n\n\n\nsmartrappy .\n\n\nAnalysing project at: ../tests/test_set_two\n\nFile Operations, Database Operations, and Import Analysis\n================================================================================\n\nFile: data/input.csv\nOperation: READ\nReferenced in:\n  - ../tests/test_set_two/data_processing.py\n\nFile: data/processed.csv\nOperation: READ/WRITE\nReferenced in:\n  - ../tests/test_set_two/data_processing.py\n  - ../tests/test_set_two/visualisation.py\n\nFile: equation.tex\nOperation: READ/WRITE\nReferenced in:\n  - ../tests/test_set_two/model_solver.py\n  - ../tests/test_set_two/slides.qmd\n\nFile: output.png\nOperation: READ/WRITE\nReferenced in:\n  - ../tests/test_set_two/slides.qmd\n  - ../tests/test_set_two/visualisation.py\n\n💽 Database Operations:\n\nDatabase: mydatabase\nType: mssql\nOperation: READ/WRITE\nReferenced in:\n  - ../tests/test_set_two/data_processing.py\n\nModule Imports:\n\nScript: data_processing.py\n  - import numpy [external]\n  - import pandas [external]\n  - import pyodbc [external]\n\nScript: model_solver.py\n  - from pathlib → pathlib:Path [external]\n\nScript: visualisation.py\n  - import pyplot [external]\n  - import pandas [external]\n  - from data_processing → data_processing:process_data [internal]\n\nTerminal Visualisation\n📦 Project Dependencies\n┗━━ 📰 slides.qmd\n    ┣━━ 📄 equation.tex\n    ┃   ┗━━ 📜 model_solver.py\n    ┃       ┗━━ 📦 pathlib:Path\n    ┗━━ 📄 output.png\n        ┗━━ 📜 visualisation.py\n            ┣━━ 📄 data/processed.csv\n            ┃   ┗━━ 📜 data_processing.py\n            ┃       ┣━━ 📄 data/input.csv\n            ┃       ┣━━ 💽 mydatabase\n            ┃       ┃   ┣━━ Type: mssql\n            ┃       ┃   ┗━━ ↻ data_processing.py (circular)\n            ┃       ┣━━ 📦 numpy\n            ┃       ┣━━ 📦 pyodbc\n            ┃       ┗━━ 📦 pandas\n            ┣━━ 📦 pandas\n            ┣━━ 📦 pyplot\n            ┗━━ 🔧 data_processing:process_data\n\n\nThe graphviz and mermaid options are equally as aesthetically pleasing!\n\n\n\n\n\nsmartrappy [OPTIONS] path/to/your/project\n\n\n\n\npath/to/your/project: Path to the Python project directory to analyse (required)\n\n\n\n\n\n-o, --output PATH: Output path for the analysis files (without extension)\n-f, --format [console|graphviz|mermaid|json]: Output format (default: console)\n--all-formats: Generate all output formats. Because why shouldn’t you have it all?\n-h, --help: Show help message\n--internal: Show only internal code dependencies. (default: false)\n--version: Show version information\n\n\n\n\n\nconsole: Output in terminal (default)\ngraphviz: Generate Graphviz visualisation, saved as a PDF\nmermaid: Generate Mermaid diagram, which can be embedded in Markdown\njson: Generate JSON representation, printed to the terminal if no output path is specified\n\nBy default, outputs are stored in the directory from where the smartrappy command is run.\n\n\n\n\nYou can find a full list of requirements in the pyproject.toml file.\nThis package also requires that you have GraphViz installed.\n\n\n\nDistributed under the terms of the MIT license, smartrappy is free and open source software.\n\n\n\nIf you encounter any problems, please file an issue along with a detailed description."
+    "text": "Smart reproducible analytical pipeline inspection.\n\n\n\nSVG logo of smartrappy\n\n\n          \n  \n\n\n\n\nsmartrappy analyses a Python project and infers the directed acyclic graph (DAG) of the code and data dependencies, including the last time any data were refreshed and whether the data exist at all on disk. It is not perfect, and will miss a lot in complex projects: but for simple projects using, say, pd.read_csv(), it does a good job of inferring the steps. It can also infer writing to and from most databases. The inferred DAG is then visualised, and there are several options for doing that—the default being to produce a visualisation in the terminal.\n\n\n\nsmartrappy is designed to help you understand the dependencies in a project, especially in a context where there may be a lot of legacy code that resembles tangled spaghetti.\n\n\n\nTo use smartrappy as a command-line tool:\nsmartrappy /path/to/your/project\nOr to use it within a Python script:\nfrom smartrappy import analyse_project\nfrom smartrappy.reporters import ConsoleReporter\n\n\nmodel = analyse_project(\"/path/to/your/project\")\nreporter = ConsoleReporter()\nreporter.generate_report(model)\n\n\n\nTo install smartrappy, you can use pip install smartrappy or uv add smartrappy if you are using Astral’s uv. You can also use it as a standalone command-line tool with uv and the uvx command:\nuvx smartrappy path/to/your/project\n\n\n\nYou can find the full documentation for smartrappy at https://aeturrell.github.io/smartrappy/.\n\n\n\n\nsmartrappy .\n\n\nAnalysing project at: ../tests/test_set_two\n\nFile Operations, Database Operations, and Import Analysis\n================================================================================\n\nFile: alternative_equation.tex\nOperation: READ/WRITE\nReferenced in:\n  - ../tests/test_set_two/nb_example.ipynb\n  - ../tests/test_set_two/slides.qmd\n\nFile: data/input.csv\nOperation: READ\nReferenced in:\n  - ../tests/test_set_two/data_processing.py\n  - ../tests/test_set_two/nb_example.ipynb\n\nFile: data/processed.csv\nOperation: READ/WRITE\nReferenced in:\n  - ../tests/test_set_two/data_processing.py\n  - ../tests/test_set_two/visualisation.py\n\nFile: equation.tex\nOperation: READ/WRITE\nReferenced in:\n  - ../tests/test_set_two/model_solver.py\n  - ../tests/test_set_two/slides.qmd\n\nFile: output.png\nOperation: READ/WRITE\nReferenced in:\n  - ../tests/test_set_two/slides.qmd\n  - ../tests/test_set_two/visualisation.py\n\n💽 Database Operations:\n\nDatabase: mydatabase\nType: mssql\nOperation: READ/WRITE\nReferenced in:\n  - ../tests/test_set_two/data_processing.py\n\nModule Imports:\n\nScript: data_processing.py\n  - import numpy [external]\n  - import pandas [external]\n  - import pyodbc [external]\n\nScript: model_solver.py\n  - from pathlib → pathlib:Path [external]\n\nScript: nb_example.ipynb\n  - from pathlib → pathlib:Path [external]\n  - import pandas [external]\n\nScript: visualisation.py\n  - import pyplot [external]\n  - import pandas [external]\n  - from data_processing → data_processing:process_data [internal]\n\nTerminal Visualisation\n📦 Project Dependencies\n┗━━ 📰 slides.qmd\n    ┣━━ 📄 alternative_equation.tex\n    ┃   ┗━━ 📓 nb_example.ipynb\n    ┃       ┣━━ 📄 data/input.csv\n    ┃       ┣━━ 📦 pathlib:Path\n    ┃       ┗━━ 📦 pandas\n    ┣━━ 📄 output.png\n    ┃   ┗━━ 📜 visualisation.py\n    ┃       ┣━━ 📄 data/processed.csv\n    ┃       ┃   ┗━━ 📜 data_processing.py\n    ┃       ┃       ┣━━ 📄 data/input.csv\n    ┃       ┃       ┣━━ 💽 mydatabase\n    ┃       ┃       ┃   ┣━━ Type: mssql\n    ┃       ┃       ┃   ┗━━ ↻ data_processing.py (circular)\n    ┃       ┃       ┣━━ 📦 pyodbc\n    ┃       ┃       ┣━━ 📦 numpy\n    ┃       ┃       ┗━━ 📦 pandas\n    ┃       ┣━━ 📦 pyplot\n    ┃       ┣━━ 📦 pandas\n    ┃       ┗━━ 🔧 data_processing:process_data\n    ┗━━ 📄 equation.tex\n        ┗━━ 📜 model_solver.py\n            ┗━━ 📦 pathlib:Path\n\n\nThe graphviz and mermaid options are equally as aesthetically pleasing! Head to the docs to see those.\n\n\n\n\n\nsmartrappy [OPTIONS] path/to/your/project\n\n\n\n\npath/to/your/project: Path to the Python project directory to analyse (required)\n\n\n\n\n\n-o, --output PATH: Output path for the analysis files (without extension)\n-f, --format [console|graphviz|mermaid|json]: Output format (default: console)\n--all-formats: Generate all output formats. Because why shouldn’t you have it all?\n-h, --help: Show help message\n--internal: Show only internal code dependencies. (default: false)\n--version: Show version information\n\n\n\n\n\nconsole: Output in terminal (default)\ngraphviz: Generate Graphviz visualisation, saved as a PDF\nmermaid: Generate Mermaid diagram, which can be embedded in Markdown\njson: Generate JSON representation, printed to the terminal if no output path is specified\n\nBy default, outputs are stored in the directory from where the smartrappy command is run.\n\n\n\n\nYou can find a full list of requirements in the pyproject.toml file.\nThis package also requires that you have GraphViz installed.\n\n\n\nDistributed under the terms of the MIT license, smartrappy is free and open source software.\n\n\n\nIf you encounter any problems, please file an issue along with a detailed description."
   },
   {
     "objectID": "index.html#introduction",
@@ -18,7 +18,7 @@
     "href": "index.html#example-of-output",
     "title": "smartrappy",
     "section": "",
-    "text": "smartrappy .\n\n\nAnalysing project at: ../tests/test_set_two\n\nFile Operations, Database Operations, and Import Analysis\n================================================================================\n\nFile: data/input.csv\nOperation: READ\nReferenced in:\n  - ../tests/test_set_two/data_processing.py\n\nFile: data/processed.csv\nOperation: READ/WRITE\nReferenced in:\n  - ../tests/test_set_two/data_processing.py\n  - ../tests/test_set_two/visualisation.py\n\nFile: equation.tex\nOperation: READ/WRITE\nReferenced in:\n  - ../tests/test_set_two/model_solver.py\n  - ../tests/test_set_two/slides.qmd\n\nFile: output.png\nOperation: READ/WRITE\nReferenced in:\n  - ../tests/test_set_two/slides.qmd\n  - ../tests/test_set_two/visualisation.py\n\n💽 Database Operations:\n\nDatabase: mydatabase\nType: mssql\nOperation: READ/WRITE\nReferenced in:\n  - ../tests/test_set_two/data_processing.py\n\nModule Imports:\n\nScript: data_processing.py\n  - import numpy [external]\n  - import pandas [external]\n  - import pyodbc [external]\n\nScript: model_solver.py\n  - from pathlib → pathlib:Path [external]\n\nScript: visualisation.py\n  - import pyplot [external]\n  - import pandas [external]\n  - from data_processing → data_processing:process_data [internal]\n\nTerminal Visualisation\n📦 Project Dependencies\n┗━━ 📰 slides.qmd\n    ┣━━ 📄 equation.tex\n    ┃   ┗━━ 📜 model_solver.py\n    ┃       ┗━━ 📦 pathlib:Path\n    ┗━━ 📄 output.png\n        ┗━━ 📜 visualisation.py\n            ┣━━ 📄 data/processed.csv\n            ┃   ┗━━ 📜 data_processing.py\n            ┃       ┣━━ 📄 data/input.csv\n            ┃       ┣━━ 💽 mydatabase\n            ┃       ┃   ┣━━ Type: mssql\n            ┃       ┃   ┗━━ ↻ data_processing.py (circular)\n            ┃       ┣━━ 📦 numpy\n            ┃       ┣━━ 📦 pyodbc\n            ┃       ┗━━ 📦 pandas\n            ┣━━ 📦 pandas\n            ┣━━ 📦 pyplot\n            ┗━━ 🔧 data_processing:process_data\n\n\nThe graphviz and mermaid options are equally as aesthetically pleasing!"
+    "text": "smartrappy .\n\n\nAnalysing project at: ../tests/test_set_two\n\nFile Operations, Database Operations, and Import Analysis\n================================================================================\n\nFile: alternative_equation.tex\nOperation: READ/WRITE\nReferenced in:\n  - ../tests/test_set_two/nb_example.ipynb\n  - ../tests/test_set_two/slides.qmd\n\nFile: data/input.csv\nOperation: READ\nReferenced in:\n  - ../tests/test_set_two/data_processing.py\n  - ../tests/test_set_two/nb_example.ipynb\n\nFile: data/processed.csv\nOperation: READ/WRITE\nReferenced in:\n  - ../tests/test_set_two/data_processing.py\n  - ../tests/test_set_two/visualisation.py\n\nFile: equation.tex\nOperation: READ/WRITE\nReferenced in:\n  - ../tests/test_set_two/model_solver.py\n  - ../tests/test_set_two/slides.qmd\n\nFile: output.png\nOperation: READ/WRITE\nReferenced in:\n  - ../tests/test_set_two/slides.qmd\n  - ../tests/test_set_two/visualisation.py\n\n💽 Database Operations:\n\nDatabase: mydatabase\nType: mssql\nOperation: READ/WRITE\nReferenced in:\n  - ../tests/test_set_two/data_processing.py\n\nModule Imports:\n\nScript: data_processing.py\n  - import numpy [external]\n  - import pandas [external]\n  - import pyodbc [external]\n\nScript: model_solver.py\n  - from pathlib → pathlib:Path [external]\n\nScript: nb_example.ipynb\n  - from pathlib → pathlib:Path [external]\n  - import pandas [external]\n\nScript: visualisation.py\n  - import pyplot [external]\n  - import pandas [external]\n  - from data_processing → data_processing:process_data [internal]\n\nTerminal Visualisation\n📦 Project Dependencies\n┗━━ 📰 slides.qmd\n    ┣━━ 📄 alternative_equation.tex\n    ┃   ┗━━ 📓 nb_example.ipynb\n    ┃       ┣━━ 📄 data/input.csv\n    ┃       ┣━━ 📦 pathlib:Path\n    ┃       ┗━━ 📦 pandas\n    ┣━━ 📄 output.png\n    ┃   ┗━━ 📜 visualisation.py\n    ┃       ┣━━ 📄 data/processed.csv\n    ┃       ┃   ┗━━ 📜 data_processing.py\n    ┃       ┃       ┣━━ 📄 data/input.csv\n    ┃       ┃       ┣━━ 💽 mydatabase\n    ┃       ┃       ┃   ┣━━ Type: mssql\n    ┃       ┃       ┃   ┗━━ ↻ data_processing.py (circular)\n    ┃       ┃       ┣━━ 📦 pyodbc\n    ┃       ┃       ┣━━ 📦 numpy\n    ┃       ┃       ┗━━ 📦 pandas\n    ┃       ┣━━ 📦 pyplot\n    ┃       ┣━━ 📦 pandas\n    ┃       ┗━━ 🔧 data_processing:process_data\n    ┗━━ 📄 equation.tex\n        ┗━━ 📜 model_solver.py\n            ┗━━ 📦 pathlib:Path\n\n\nThe graphviz and mermaid options are equally as aesthetically pleasing! Head to the docs to see those."
   },
   {
     "objectID": "index.html#options-and-configuration",
@@ -49,39 +49,27 @@
     "text": "If you encounter any problems, please file an issue along with a detailed description."
   },
   {
-    "objectID": "reference/analyse_project.html",
-    "href": "reference/analyse_project.html",
-    "title": "analyse_project",
+    "objectID": "reference/ConsoleReporter.html",
+    "href": "reference/ConsoleReporter.html",
+    "title": "ConsoleReporter",
     "section": "",
-    "text": "analyse_project(folder_path, internal_only=False)\nAnalyse a project folder and build a comprehensive project model.\n\n\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\nDefault\n\n\n\n\nfolder_path\nstr\nPath to the folder to analyse\nrequired\n\n\ninternal_only\nbool\nIf True, only include internal modules in the visualisation\nFalse\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\n\n\n\n\n\nProjectModel\nA ProjectModel containing the complete analysis results",
+    "text": "ConsoleReporter()\nReport analysis results to the console.\n\n\n\n\n\nName\nDescription\n\n\n\n\ngenerate_report\nGenerate a console report from the project model.\n\n\n\n\n\nConsoleReporter.generate_report(model, output_path=None)\nGenerate a console report from the project model.",
     "crumbs": [
       "Reference",
       "Function reference",
-      "analyse_project"
+      "ConsoleReporter"
     ]
   },
   {
-    "objectID": "reference/analyse_project.html#parameters",
-    "href": "reference/analyse_project.html#parameters",
-    "title": "analyse_project",
+    "objectID": "reference/ConsoleReporter.html#methods",
+    "href": "reference/ConsoleReporter.html#methods",
+    "title": "ConsoleReporter",
     "section": "",
-    "text": "Name\nType\nDescription\nDefault\n\n\n\n\nfolder_path\nstr\nPath to the folder to analyse\nrequired\n\n\ninternal_only\nbool\nIf True, only include internal modules in the visualisation\nFalse",
+    "text": "Name\nDescription\n\n\n\n\ngenerate_report\nGenerate a console report from the project model.\n\n\n\n\n\nConsoleReporter.generate_report(model, output_path=None)\nGenerate a console report from the project model.",
     "crumbs": [
       "Reference",
       "Function reference",
-      "analyse_project"
-    ]
-  },
-  {
-    "objectID": "reference/analyse_project.html#returns",
-    "href": "reference/analyse_project.html#returns",
-    "title": "analyse_project",
-    "section": "",
-    "text": "Name\nType\nDescription\n\n\n\n\n\nProjectModel\nA ProjectModel containing the complete analysis results",
-    "crumbs": [
-      "Reference",
-      "Function reference",
-      "analyse_project"
+      "ConsoleReporter"
     ]
   },
   {
@@ -130,76 +118,6 @@
       "Reference",
       "Function reference",
       "MermaidReporter"
-    ]
-  },
-  {
-    "objectID": "reference/index.html",
-    "href": "reference/index.html",
-    "title": "Function reference",
-    "section": "",
-    "text": "What smartrappy’s functions do\n\n\n\nanalyse_project\nAnalyse a project folder and build a comprehensive project model.\n\n\nConsoleReporter\nReport analysis results to the console.\n\n\nJsonReporter\nGenerate a JSON representation of the project model.\n\n\nMermaidReporter\nGenerate a Mermaid visualisation of the project model.\n\n\nGraphvizReporter\nGenerate a Graphviz visualisation of the project model. Exports as PDF",
-    "crumbs": [
-      "Reference",
-      "Function reference"
-    ]
-  },
-  {
-    "objectID": "reference/index.html#function-reference-1",
-    "href": "reference/index.html#function-reference-1",
-    "title": "Function reference",
-    "section": "",
-    "text": "What smartrappy’s functions do\n\n\n\nanalyse_project\nAnalyse a project folder and build a comprehensive project model.\n\n\nConsoleReporter\nReport analysis results to the console.\n\n\nJsonReporter\nGenerate a JSON representation of the project model.\n\n\nMermaidReporter\nGenerate a Mermaid visualisation of the project model.\n\n\nGraphvizReporter\nGenerate a Graphviz visualisation of the project model. Exports as PDF",
-    "crumbs": [
-      "Reference",
-      "Function reference"
-    ]
-  },
-  {
-    "objectID": "reference/GraphvizReporter.html",
-    "href": "reference/GraphvizReporter.html",
-    "title": "GraphvizReporter",
-    "section": "",
-    "text": "GraphvizReporter()\nGenerate a Graphviz visualisation of the project model. Exports as PDF\n\n\n\n\n\nName\nDescription\n\n\n\n\ngenerate_report\nGenerate a Graphviz visualisation from the project model.\n\n\n\n\n\nGraphvizReporter.generate_report(model, output_path=None)\nGenerate a Graphviz visualisation from the project model.",
-    "crumbs": [
-      "Reference",
-      "Function reference",
-      "GraphvizReporter"
-    ]
-  },
-  {
-    "objectID": "reference/GraphvizReporter.html#methods",
-    "href": "reference/GraphvizReporter.html#methods",
-    "title": "GraphvizReporter",
-    "section": "",
-    "text": "Name\nDescription\n\n\n\n\ngenerate_report\nGenerate a Graphviz visualisation from the project model.\n\n\n\n\n\nGraphvizReporter.generate_report(model, output_path=None)\nGenerate a Graphviz visualisation from the project model.",
-    "crumbs": [
-      "Reference",
-      "Function reference",
-      "GraphvizReporter"
-    ]
-  },
-  {
-    "objectID": "reference/ConsoleReporter.html",
-    "href": "reference/ConsoleReporter.html",
-    "title": "ConsoleReporter",
-    "section": "",
-    "text": "ConsoleReporter()\nReport analysis results to the console.\n\n\n\n\n\nName\nDescription\n\n\n\n\ngenerate_report\nGenerate a console report from the project model.\n\n\n\n\n\nConsoleReporter.generate_report(model, output_path=None)\nGenerate a console report from the project model.",
-    "crumbs": [
-      "Reference",
-      "Function reference",
-      "ConsoleReporter"
-    ]
-  },
-  {
-    "objectID": "reference/ConsoleReporter.html#methods",
-    "href": "reference/ConsoleReporter.html#methods",
-    "title": "ConsoleReporter",
-    "section": "",
-    "text": "Name\nDescription\n\n\n\n\ngenerate_report\nGenerate a console report from the project model.\n\n\n\n\n\nConsoleReporter.generate_report(model, output_path=None)\nGenerate a console report from the project model.",
-    "crumbs": [
-      "Reference",
-      "Function reference",
-      "ConsoleReporter"
     ]
   },
   {
@@ -257,5 +175,108 @@
     "title": "smartrappy",
     "section": "How to build the documentation manually and locally",
     "text": "How to build the documentation manually and locally\nYou shouldn’t need to publish the documentation because there’s a GitHub action that covers it automatically whenever there’s a new release. But to upload the documentation manually, it’s\n\nRun make to build the documentation\nRun make publish to publish the documentation"
+  },
+  {
+    "objectID": "reference/index.html",
+    "href": "reference/index.html",
+    "title": "Function reference",
+    "section": "",
+    "text": "What smartrappy’s functions do\n\n\n\nanalyse_project\nAnalyse a project folder and build a comprehensive project model.\n\n\nConsoleReporter\nReport analysis results to the console.\n\n\nJsonReporter\nGenerate a JSON representation of the project model.\n\n\nMermaidReporter\nGenerate a Mermaid visualisation of the project model.\n\n\nGraphvizReporter\nGenerate a Graphviz visualisation of the project model. Exports as PDF",
+    "crumbs": [
+      "Reference",
+      "Function reference"
+    ]
+  },
+  {
+    "objectID": "reference/index.html#function-reference-1",
+    "href": "reference/index.html#function-reference-1",
+    "title": "Function reference",
+    "section": "",
+    "text": "What smartrappy’s functions do\n\n\n\nanalyse_project\nAnalyse a project folder and build a comprehensive project model.\n\n\nConsoleReporter\nReport analysis results to the console.\n\n\nJsonReporter\nGenerate a JSON representation of the project model.\n\n\nMermaidReporter\nGenerate a Mermaid visualisation of the project model.\n\n\nGraphvizReporter\nGenerate a Graphviz visualisation of the project model. Exports as PDF",
+    "crumbs": [
+      "Reference",
+      "Function reference"
+    ]
+  },
+  {
+    "objectID": "reference/analyse_project.html",
+    "href": "reference/analyse_project.html",
+    "title": "analyse_project",
+    "section": "",
+    "text": "analyse_project(folder_path, internal_only=False)\nAnalyse a project folder and build a comprehensive project model.\n\n\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\nDefault\n\n\n\n\nfolder_path\nstr\nPath to the folder to analyse\nrequired\n\n\ninternal_only\nbool\nIf True, only include internal modules in the visualisation\nFalse\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nName\nType\nDescription\n\n\n\n\n\nProjectModel\nA ProjectModel containing the complete analysis results",
+    "crumbs": [
+      "Reference",
+      "Function reference",
+      "analyse_project"
+    ]
+  },
+  {
+    "objectID": "reference/analyse_project.html#parameters",
+    "href": "reference/analyse_project.html#parameters",
+    "title": "analyse_project",
+    "section": "",
+    "text": "Name\nType\nDescription\nDefault\n\n\n\n\nfolder_path\nstr\nPath to the folder to analyse\nrequired\n\n\ninternal_only\nbool\nIf True, only include internal modules in the visualisation\nFalse",
+    "crumbs": [
+      "Reference",
+      "Function reference",
+      "analyse_project"
+    ]
+  },
+  {
+    "objectID": "reference/analyse_project.html#returns",
+    "href": "reference/analyse_project.html#returns",
+    "title": "analyse_project",
+    "section": "",
+    "text": "Name\nType\nDescription\n\n\n\n\n\nProjectModel\nA ProjectModel containing the complete analysis results",
+    "crumbs": [
+      "Reference",
+      "Function reference",
+      "analyse_project"
+    ]
+  },
+  {
+    "objectID": "reference/GraphvizReporter.html",
+    "href": "reference/GraphvizReporter.html",
+    "title": "GraphvizReporter",
+    "section": "",
+    "text": "GraphvizReporter()\nGenerate a Graphviz visualisation of the project model. Exports as PDF\n\n\n\n\n\nName\nDescription\n\n\n\n\ngenerate_report\nGenerate a Graphviz visualisation from the project model.\n\n\n\n\n\nGraphvizReporter.generate_report(model, output_path=None)\nGenerate a Graphviz visualisation from the project model.",
+    "crumbs": [
+      "Reference",
+      "Function reference",
+      "GraphvizReporter"
+    ]
+  },
+  {
+    "objectID": "reference/GraphvizReporter.html#methods",
+    "href": "reference/GraphvizReporter.html#methods",
+    "title": "GraphvizReporter",
+    "section": "",
+    "text": "Name\nDescription\n\n\n\n\ngenerate_report\nGenerate a Graphviz visualisation from the project model.\n\n\n\n\n\nGraphvizReporter.generate_report(model, output_path=None)\nGenerate a Graphviz visualisation from the project model.",
+    "crumbs": [
+      "Reference",
+      "Function reference",
+      "GraphvizReporter"
+    ]
+  },
+  {
+    "objectID": "output_options.html",
+    "href": "output_options.html",
+    "title": "Other output options",
+    "section": "",
+    "text": "uv run smartrappy . --internal --format=graphviz"
+  },
+  {
+    "objectID": "output_options.html#graphviz",
+    "href": "output_options.html#graphviz",
+    "title": "Other output options",
+    "section": "",
+    "text": "uv run smartrappy . --internal --format=graphviz"
+  },
+  {
+    "objectID": "output_options.html#mermaid",
+    "href": "output_options.html#mermaid",
+    "title": "Other output options",
+    "section": "Mermaid",
+    "text": "Mermaid\nuv run smartrappy . --internal --format=mermaid\n\n\n\n\n\ngraph TD\n    %% Style definitions\n    classDef scriptNode fill:#90EE90,stroke:#333,stroke-width:2px;\n    classDef fileNode fill:#FFB6C1,stroke:#333,stroke-width:2px;\n    classDef quartoNode fill:#00CED1,stroke:#333,stroke-width:2px;\n    classDef notebookNode fill:#FFD700,stroke:#333,stroke-width:2px;\n    classDef missingFile fill:#FFB6C1,stroke:#FF0000,stroke-width:3px,stroke-dasharray: 5 5;\n    classDef internalModule fill:#ADD8E6,stroke:#333,stroke-width:2px;\n    classDef externalModule fill:#FFA07A,stroke:#333,stroke-width:2px;\n    classDef importedItem fill:#ADD8E6,stroke:#333,stroke-width:2px,shape:circle;\n    classDef externalImportedItem fill:#FFA07A,stroke:#333,stroke-width:2px,shape:circle;\n    classDef databaseNode fill:#B19CD9,stroke:#333,stroke-width:2px,shape:cylinder;\n\n    %% Nodes\n    quarto_document_13558783[\"slides.qmd\"]:::quartoNode\n    data_file_14384327[\"output.png&lt;br/&gt;&lt;small&gt;File does not exist&lt;/small&gt;\"]:::missingFile\n    data_file_7682433[\"equation.tex&lt;br/&gt;&lt;small&gt;File does not exist&lt;/small&gt;\"]:::missingFile\n    data_file_5741772[\"alternative_equation.tex&lt;br/&gt;&lt;small&gt;File does not exist&lt;/small&gt;\"]:::missingFile\n    jupyter_notebook_2961208[\"nb_example.ipynb\"]:::notebookNode\n    data_file_1692456[\"data/input.csv&lt;br/&gt;&lt;small&gt;Modified: 2025-04-20 17:31:30&lt;/small&gt;\"]:::fileNode\n    script_5034441[\"model_solver.py\"]:::scriptNode\n    script_10331269[\"visualisation.py\"]:::scriptNode\n    data_file_9084974[\"data/processed.csv&lt;br/&gt;&lt;small&gt;File does not exist&lt;/small&gt;\"]:::missingFile\n    script_3375286[\"data_processing.py\"]:::scriptNode\n    database_3520401[\"mydatabase&lt;br/&gt;&lt;small&gt;Type: mssql&lt;/small&gt;\"]:::databaseNode\n    internal_module_3617581((\"data_processing:process_data\")):::importedItem\n\n    %% Relationships\n    data_file_14384327 --&gt; quarto_document_13558783\n    data_file_7682433 --&gt; quarto_document_13558783\n    data_file_5741772 --&gt; quarto_document_13558783\n    data_file_1692456 --&gt; jupyter_notebook_2961208\n    jupyter_notebook_2961208 --&gt; data_file_5741772\n    script_5034441 --&gt; data_file_7682433\n    script_10331269 --&gt; data_file_14384327\n    data_file_9084974 --&gt; script_10331269\n    script_3375286 --&gt; data_file_9084974\n    data_file_1692456 --&gt; script_3375286\n    database_3520401 --&gt; script_3375286\n    script_3375286 --&gt; database_3520401\n    internal_module_3617581 --&gt; script_10331269"
   }
 ]

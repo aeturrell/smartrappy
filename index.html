@@ -73,7 +73,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="site_libs/quarto-html/quarto-syntax-highlighting-e26003cea8cd680ca0c55a263523d882.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="site_libs/bootstrap/bootstrap-d75320580429fd03ccc14abf5aea7e44.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-c1ef1f14acc610acb7f84b3726103d52.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -130,6 +130,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li class="nav-item">
     <a class="nav-link active" href="./index.html" aria-current="page"> 
 <span class="menu-text">Home</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./output_options.html"> 
+<span class="menu-text">Other output options</span></a>
   </li>  
   <li class="nav-item">
     <a class="nav-link" href="./reference/index.html"> 
@@ -240,10 +244,17 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 File Operations, Database Operations, and Import Analysis
 ================================================================================
 
+File: alternative_equation.tex
+Operation: READ/WRITE
+Referenced in:
+  - ../tests/test_set_two/nb_example.ipynb
+  - ../tests/test_set_two/slides.qmd
+
 File: data/input.csv
 Operation: READ
 Referenced in:
   - ../tests/test_set_two/data_processing.py
+  - ../tests/test_set_two/nb_example.ipynb
 
 File: data/processed.csv
 Operation: READ/WRITE
@@ -281,6 +292,10 @@ Script: data_processing.py
 Script: model_solver.py
   - from pathlib → pathlib:Path [external]
 
+Script: nb_example.ipynb
+  - from pathlib → pathlib:Path [external]
+  - import pandas [external]
+
 Script: visualisation.py
   - import pyplot [external]
   - import pandas [external]
@@ -289,26 +304,31 @@ Script: visualisation.py
 Terminal Visualisation
 📦 Project Dependencies
 ┗━━ 📰 slides.qmd
-    ┣━━ 📄 equation.tex
-    ┃   ┗━━ 📜 model_solver.py
-    ┃       ┗━━ 📦 pathlib:Path
-    ┗━━ 📄 output.png
-        ┗━━ 📜 visualisation.py
-            ┣━━ 📄 data/processed.csv
-            ┃   ┗━━ 📜 data_processing.py
-            ┃       ┣━━ 📄 data/input.csv
-            ┃       ┣━━ 💽 mydatabase
-            ┃       ┃   ┣━━ Type: mssql
-            ┃       ┃   ┗━━ ↻ data_processing.py (circular)
-            ┃       ┣━━ 📦 numpy
-            ┃       ┣━━ 📦 pyodbc
-            ┃       ┗━━ 📦 pandas
-            ┣━━ 📦 pandas
-            ┣━━ 📦 pyplot
-            ┗━━ 🔧 data_processing:process_data</code></pre>
+    ┣━━ 📄 alternative_equation.tex
+    ┃   ┗━━ 📓 nb_example.ipynb
+    ┃       ┣━━ 📄 data/input.csv
+    ┃       ┣━━ 📦 pathlib:Path
+    ┃       ┗━━ 📦 pandas
+    ┣━━ 📄 output.png
+    ┃   ┗━━ 📜 visualisation.py
+    ┃       ┣━━ 📄 data/processed.csv
+    ┃       ┃   ┗━━ 📜 data_processing.py
+    ┃       ┃       ┣━━ 📄 data/input.csv
+    ┃       ┃       ┣━━ 💽 mydatabase
+    ┃       ┃       ┃   ┣━━ Type: mssql
+    ┃       ┃       ┃   ┗━━ ↻ data_processing.py (circular)
+    ┃       ┃       ┣━━ 📦 pyodbc
+    ┃       ┃       ┣━━ 📦 numpy
+    ┃       ┃       ┗━━ 📦 pandas
+    ┃       ┣━━ 📦 pyplot
+    ┃       ┣━━ 📦 pandas
+    ┃       ┗━━ 🔧 data_processing:process_data
+    ┗━━ 📄 equation.tex
+        ┗━━ 📜 model_solver.py
+            ┗━━ 📦 pathlib:Path</code></pre>
 </div>
 </div>
-<p>The graphviz and mermaid options are equally as aesthetically pleasing!</p>
+<p>The graphviz and mermaid options are equally as aesthetically pleasing! <a href="https://aeturrell.github.io/smartrappy/reference/output_options.html">Head to the docs</a> to see those.</p>
 </section>
 <section id="options-and-configuration" class="level2">
 <h2 class="anchored" data-anchor-id="options-and-configuration">Options and configuration</h2>
