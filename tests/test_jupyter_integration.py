@@ -30,7 +30,11 @@ df.to_excel("output.xlsx")
                 {
                     "cell_type": "markdown",
                     "metadata": {},
-                    "source": ["# Analysis Notebook\n", "\n", "This is a Jupyter notebook with Python code cells."],
+                    "source": [
+                        "# Analysis Notebook\n",
+                        "\n",
+                        "This is a Jupyter notebook with Python code cells.",
+                    ],
                 },
                 {
                     "cell_type": "code",
@@ -90,7 +94,9 @@ df.to_excel("output.xlsx")
         for node_id, node in model.nodes.items():
             if node.name == "process.py" and node.type == NodeType.SCRIPT:
                 py_script_found = True
-            elif node.name == "analysis.ipynb" and node.type == NodeType.JUPYTER_NOTEBOOK:
+            elif (
+                node.name == "analysis.ipynb" and node.type == NodeType.JUPYTER_NOTEBOOK
+            ):
                 notebook_found = True
 
         assert py_script_found, "Python script node not found in the model"
@@ -135,7 +141,11 @@ def test_empty_jupyter_notebook():
                 {
                     "cell_type": "markdown",
                     "metadata": {},
-                    "source": ["# Empty Notebook\n", "\n", "This notebook has no code cells."],
+                    "source": [
+                        "# Empty Notebook\n",
+                        "\n",
+                        "This notebook has no code cells.",
+                    ],
                 },
             ],
             "metadata": {
@@ -176,7 +186,11 @@ def test_jupyter_integration_with_complex_operations():
                 {
                     "cell_type": "markdown",
                     "metadata": {},
-                    "source": ["# Comprehensive Jupyter Notebook\n", "\n", "This notebook includes various types of operations."],
+                    "source": [
+                        "# Comprehensive Jupyter Notebook\n",
+                        "\n",
+                        "This notebook includes various types of operations.",
+                    ],
                 },
                 {
                     "cell_type": "code",
