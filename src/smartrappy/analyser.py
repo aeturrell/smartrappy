@@ -772,13 +772,14 @@ def analyse_project(folder_path: str, internal_only: bool = False) -> ProjectMod
     Returns:
         A ProjectModel containing the complete analysis results
     """
-    # Import qmd_parser here to avoid circular imports
+    # Import parsers here to avoid circular imports
+    from smartrappy.notebook_parser import analyse_notebook_file
     from smartrappy.qmd_parser import analyse_qmd_file
 
     model = ProjectModel(folder_path, internal_only=internal_only)
     project_modules = get_project_modules(folder_path)
 
-    # Analyse all Python and QMD files in the project
+    # Analyse all Python, QMD, and Jupyter notebook files in the project
     for root, dirs, files in os.walk(folder_path):
         # Skip hidden directories (starting with .)
         dirs[:] = [d for d in dirs if not d.startswith(".")]
@@ -898,6 +899,100 @@ def analyse_project(folder_path: str, internal_only: bool = False) -> ProjectMod
                             model.add_edge(db_node_id, quarto_node_id, "read")
                         if db_op.is_write:
                             model.add_edge(quarto_node_id, db_node_id, "write")
+
+            # Handle Jupyter notebook files
+            elif file.endswith(".ipynb"):
+                operations, imports, db_operations = analyse_notebook_file(
+                    file_path,
+                    project_modules,
+                    FileOperationFinder,
+                    ModuleImportFinder,
+                    DatabaseOperationFinder,
+                )
+
+                # Only add notebook to the model if it has Python operations
+                if operations or imports or db_operations:
+                    # Create a node for the Jupyter notebook itself
+                    notebook_name = os.path.basename(file_path)
+                    notebook_node_id = model.add_node(
+                        notebook_name, NodeType.JUPYTER_NOTEBOOK
+                    )
+
+                    # Add file operations to the model
+                    for op in operations:
+                        model.add_file_operation(op)
+
+                        # We also need to manually add edges since the build_graph method
+                        # only handles .py files by default
+                        file_node_id = model.add_node(
+                            op.filename,
+                            NodeType.DATA_FILE,
+                            {"status": model.file_statuses.get(op.filename, None)},
+                        )
+
+                        if op.is_read:
+                            model.add_edge(file_node_id, notebook_node_id, "read")
+                        if op.is_write:
+                            model.add_edge(notebook_node_id, file_node_id, "write")
+
+                    # Add imports to the model
+                    for imp in imports:
+                        model.add_import(imp)
+
+                        # Skip adding edges for external modules if internal_only is True
+                        if model.internal_only and not imp.is_internal:
+                            continue
+
+                        # Add edges for imports
+                        base_module_name = os.path.basename(
+                            imp.module_name.replace(".", "/")
+                        )
+                        module_display_name = base_module_name
+
+                        if imp.is_from_import and imp.imported_names:
+                            for imported_name in imp.imported_names:
+                                detailed_name = f"{module_display_name}:{imported_name}"
+                                node_type = (
+                                    NodeType.INTERNAL_MODULE
+                                    if imp.is_internal
+                                    else NodeType.EXTERNAL_MODULE
+                                )
+                                import_node_id = model.add_node(
+                                    detailed_name,
+                                    node_type,
+                                    {
+                                        "module": module_display_name,
+                                        "imported_name": imported_name,
+                                        "is_from_import": True,
+                                    },
+                                )
+                                model.add_edge(
+                                    import_node_id, notebook_node_id, "import"
+                                )
+                        else:
+                            node_type = (
+                                NodeType.INTERNAL_MODULE
+                                if imp.is_internal
+                                else NodeType.EXTERNAL_MODULE
+                            )
+                            import_node_id = model.add_node(
+                                module_display_name, node_type
+                            )
+                            model.add_edge(import_node_id, notebook_node_id, "import")
+
+                    # Add database operations to the model
+                    for db_op in db_operations:
+                        model.add_database_operation(db_op)
+
+                        # Add edges for database operations
+                        db_node_id = model.add_node(
+                            db_op.db_name, NodeType.DATABASE, {"db_type": db_op.db_type}
+                        )
+
+                        if db_op.is_read:
+                            model.add_edge(db_node_id, notebook_node_id, "read")
+                        if db_op.is_write:
+                            model.add_edge(notebook_node_id, db_node_id, "write")
 
     # Build the graph representation
     model.build_graph()

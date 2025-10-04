@@ -142,16 +142,18 @@ class ConsoleReporter(Reporter):
                 NodeType.EXTERNAL_MODULE: "📦",
                 NodeType.INTERNAL_MODULE: "🔧",
                 NodeType.DATA_FILE: "📄",
-                NodeType.DATABASE: "💽",  # Using the database symbol for database nodes
-                NodeType.QUARTO_DOCUMENT: "📰",  # New icon for Quarto documents
+                NodeType.DATABASE: "💽",
+                NodeType.QUARTO_DOCUMENT: "📰",
+                NodeType.JUPYTER_NOTEBOOK: "📓",
             }
             colors = {
                 NodeType.SCRIPT: "green",
                 NodeType.EXTERNAL_MODULE: "red",
                 NodeType.INTERNAL_MODULE: "blue",
                 NodeType.DATA_FILE: "magenta",
-                NodeType.DATABASE: "purple",  # Using purple color for database nodes
-                NodeType.QUARTO_DOCUMENT: "cyan",  # Use cyan color for Quarto documents
+                NodeType.DATABASE: "purple",
+                NodeType.QUARTO_DOCUMENT: "cyan",
+                NodeType.JUPYTER_NOTEBOOK: "yellow",
             }
             return Text(
                 f"{icons.get(node_type, '❓')} {name}",
@@ -307,6 +309,15 @@ class GraphvizReporter(Reporter):
                     color="#333333",
                     penwidth="2.0",
                 )
+            elif node.type == NodeType.JUPYTER_NOTEBOOK:
+                # Special styling for Jupyter notebooks
+                dot.node(
+                    node_id,
+                    node.name,
+                    fillcolor="#FFD700",  # Gold for Jupyter notebooks
+                    color="#333333",
+                    penwidth="2.0",
+                )
 
         # Add edges
         dot.attr("edge", color="#333333")
@@ -338,6 +349,7 @@ class MermaidReporter(Reporter):
             "    classDef scriptNode fill:#90EE90,stroke:#333,stroke-width:2px;",
             "    classDef fileNode fill:#FFB6C1,stroke:#333,stroke-width:2px;",
             "    classDef quartoNode fill:#00CED1,stroke:#333,stroke-width:2px;",
+            "    classDef notebookNode fill:#FFD700,stroke:#333,stroke-width:2px;",
             "    classDef missingFile fill:#FFB6C1,stroke:#FF0000,stroke-width:3px,stroke-dasharray: 5 5;",
             "    classDef internalModule fill:#ADD8E6,stroke:#333,stroke-width:2px;",
             "    classDef externalModule fill:#FFA07A,stroke:#333,stroke-width:2px;",
@@ -386,6 +398,8 @@ class MermaidReporter(Reporter):
                     mermaid.append(f'    {node_id}["{node.name}"]:::externalModule')
             elif node.type == NodeType.QUARTO_DOCUMENT:
                 mermaid.append(f'    {node_id}["{node.name}"]:::quartoNode')
+            elif node.type == NodeType.JUPYTER_NOTEBOOK:
+                mermaid.append(f'    {node_id}["{node.name}"]:::notebookNode')
 
         mermaid.append("")
         mermaid.append("    %% Relationships")

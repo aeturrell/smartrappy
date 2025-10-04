@@ -15,3 +15,7 @@ format:
 ## A slide with a latex include
 
 {{< include /equation.tex >}}
+
+## A slide with an alternative equation
+
+{{< include /alternative_equation.tex >}}
