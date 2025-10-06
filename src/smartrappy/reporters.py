@@ -433,6 +433,10 @@ class JsonReporter(Reporter):
 
         # Add nodes
         for node_id, node in model.nodes.items():
+            # Skip external modules if internal_only is True
+            if model.internal_only and node.type == NodeType.EXTERNAL_MODULE:
+                continue
+
             node_data = {
                 "id": node_id,
                 "name": node.name,
@@ -472,6 +476,10 @@ class JsonReporter(Reporter):
         # Add imports
         for source_file, imports in model.imports.items():
             for imp in imports:
+                # Skip external modules if internal_only is True
+                if model.internal_only and not imp.is_internal:
+                    continue
+
                 serializable["imports"].append(
                     {
                         "module_name": imp.module_name,
