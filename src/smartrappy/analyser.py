@@ -53,9 +53,9 @@ def extract_string_from_node(node: ast.AST) -> Optional[str]:
     Returns:
         The extracted string, or None if extraction wasn't possible
     """
-    # Handle direct string literals
-    if isinstance(node, ast.Str):
-        return node.s
+    # Handle direct string literals (Python 3.8+)
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return node.value
 
     # Handle Path() calls - Path("some/path") or pathlib.Path("some/path")
     if isinstance(node, ast.Call):
@@ -87,13 +87,17 @@ def get_open_file_info(node: ast.Call, source_file: str) -> Optional[FileInfo]:
     mode = "r"
 
     # Check positional mode argument
-    if len(node.args) > 1 and isinstance(node.args[1], ast.Str):
-        mode = node.args[1].s
+    if len(node.args) > 1:
+        mode_str = extract_string_from_node(node.args[1])
+        if mode_str:
+            mode = mode_str
 
     # Check for mode in keyword arguments
     for keyword in node.keywords:
-        if keyword.arg == "mode" and isinstance(keyword.value, ast.Str):
-            mode = keyword.value.s
+        if keyword.arg == "mode":
+            mode_str = extract_string_from_node(keyword.value)
+            if mode_str:
+                mode = mode_str
 
     is_read, is_write = get_mode_properties(mode)
 
@@ -470,8 +474,9 @@ def get_pandas_sql_info(node: ast.Call, source_file: str) -> Optional[DatabaseIn
         for keyword in node.keywords:
             if keyword.arg == "con":
                 # Connection can be a string or a connection object
-                if isinstance(keyword.value, ast.Str):
-                    conn_string = keyword.value.s
+                conn_str_value = extract_string_from_node(keyword.value)
+                if conn_str_value:
+                    conn_string = conn_str_value
 
                     # Attempt to determine database type from connection string
                     if "postgresql" in conn_string.lower():
@@ -528,37 +533,41 @@ def get_pandas_sql_info(node: ast.Call, source_file: str) -> Optional[DatabaseIn
         db_type = "unknown"
 
         # Check for table name in first arg
-        if len(node.args) > 0 and isinstance(node.args[0], ast.Str):
-            table_name = node.args[0].s
-            db_name = f"pandas_sql_db:{table_name}"
+        if len(node.args) > 0:
+            table_name_str = extract_string_from_node(node.args[0])
+            if table_name_str:
+                table_name = table_name_str
+                db_name = f"pandas_sql_db:{table_name}"
 
         # Check for connection in args or kwargs
         conn_string = None
         for keyword in node.keywords:
-            if keyword.arg == "con" and isinstance(keyword.value, ast.Str):
-                conn_string = keyword.value.s
+            if keyword.arg == "con":
+                conn_str_value = extract_string_from_node(keyword.value)
+                if conn_str_value:
+                    conn_string = conn_str_value
 
-                # Attempt to determine database type from connection string
-                if "postgresql" in conn_string.lower():
-                    db_type = "postgresql"
-                elif "mysql" in conn_string.lower():
-                    db_type = "mysql"
-                elif "sqlite" in conn_string.lower():
-                    db_type = "sqlite"
+                    # Attempt to determine database type from connection string
+                    if "postgresql" in conn_string.lower():
+                        db_type = "postgresql"
+                    elif "mysql" in conn_string.lower():
+                        db_type = "mysql"
+                    elif "sqlite" in conn_string.lower():
+                        db_type = "sqlite"
 
-                # Extract DB name if possible from connection string
-                import re
+                    # Extract DB name if possible from connection string
+                    import re
 
-                patterns = [
-                    r"/([^/]+)$",  # Standard URI format
-                    r"database=([^;]+)",  # MSSQL/ODBC style
-                    r"initial catalog=([^;]+)",  # MSSQL style
-                ]
-                for pattern in patterns:
-                    match = re.search(pattern, conn_string, re.IGNORECASE)
-                    if match:
-                        db_name = match.group(1)
-                        break
+                    patterns = [
+                        r"/([^/]+)$",  # Standard URI format
+                        r"database=([^;]+)",  # MSSQL/ODBC style
+                        r"initial catalog=([^;]+)",  # MSSQL style
+                    ]
+                    for pattern in patterns:
+                        match = re.search(pattern, conn_string, re.IGNORECASE)
+                        if match:
+                            db_name = match.group(1)
+                            break
 
         return DatabaseInfo(
             db_name=db_name,
@@ -582,8 +591,12 @@ def get_sqlalchemy_info(node: ast.Call, source_file: str) -> Optional[DatabaseIn
         return None
 
     # Extract connection string from the first argument
-    if len(node.args) > 0 and isinstance(node.args[0], ast.Str):
-        conn_string = node.args[0].s
+    if len(node.args) > 0:
+        conn_str_value = extract_string_from_node(node.args[0])
+        if conn_str_value:
+            conn_string = conn_str_value
+        else:
+            return None
 
         # Try to extract database type and name from connection string
         db_type = "unknown"
@@ -678,8 +691,10 @@ def get_direct_db_driver_info(
             db_name = "mysql_db"
 
         # Check connection string or parameters for database name
-        if len(node.args) > 0 and isinstance(node.args[0], ast.Str):
-            conn_string = node.args[0].s
+        if len(node.args) > 0:
+            conn_str_value = extract_string_from_node(node.args[0])
+            if conn_str_value:
+                conn_string = conn_str_value
             # Extract database name from connection string
             import re
 
