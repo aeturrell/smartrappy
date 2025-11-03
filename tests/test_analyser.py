@@ -1,10 +1,6 @@
 """Comprehensive tests for analyser.py functions."""
 
 import ast
-import tempfile
-from pathlib import Path
-
-import pytest
 
 from smartrappy.analyser import (
     DatabaseOperationFinder,
@@ -19,7 +15,6 @@ from smartrappy.analyser import (
     get_pandas_sql_info,
     get_sqlalchemy_info,
 )
-from smartrappy.models import DatabaseInfo, FileInfo
 
 
 class TestGetModeProperties:
@@ -168,7 +163,7 @@ class TestGetPandasFileInfo:
 
     def test_pandas_non_file_method(self):
         """Test pandas method that doesn't read/write files."""
-        code = 'pd.concat([df1, df2])'
+        code = "pd.concat([df1, df2])"
         tree = ast.parse(code)
         node = tree.body[0].value
         result = get_pandas_file_info(node, "test.py")
@@ -354,11 +349,11 @@ class TestDatabaseOperationFinder:
 
     def test_sqlalchemy_engine_tracking(self):
         """Test that SQLAlchemy engines are tracked correctly."""
-        code = '''
+        code = """
 import sqlalchemy as sa
 engine = sa.create_engine("sqlite:///test.db")
 df = pd.read_sql("SELECT * FROM table", engine)
-'''
+"""
         tree = ast.parse(code)
         finder = DatabaseOperationFinder("test.py")
         finder.visit(tree)
@@ -368,10 +363,10 @@ df = pd.read_sql("SELECT * FROM table", engine)
 
     def test_direct_create_engine(self):
         """Test direct create_engine call tracking."""
-        code = '''
+        code = """
 from sqlalchemy import create_engine
 engine = create_engine("postgresql://localhost/mydb")
-'''
+"""
         tree = ast.parse(code)
         finder = DatabaseOperationFinder("test.py")
         finder.visit(tree)
@@ -382,11 +377,11 @@ engine = create_engine("postgresql://localhost/mydb")
 
     def test_connection_variable_tracking(self):
         """Test that database connections are tracked correctly."""
-        code = '''
+        code = """
 import sqlite3
 conn = sqlite3.connect("test.db")
 df = pd.read_sql("SELECT * FROM table", conn)
-'''
+"""
         tree = ast.parse(code)
         finder = DatabaseOperationFinder("test.py")
         finder.visit(tree)
@@ -396,11 +391,11 @@ df = pd.read_sql("SELECT * FROM table", conn)
 
     def test_to_sql_with_engine(self):
         """Test df.to_sql() with SQLAlchemy engine."""
-        code = '''
+        code = """
 import sqlalchemy as sa
 engine = sa.create_engine("sqlite:///test.db")
 df.to_sql("table_name", engine)
-'''
+"""
         tree = ast.parse(code)
         finder = DatabaseOperationFinder("test.py")
         finder.visit(tree)
@@ -410,11 +405,11 @@ df.to_sql("table_name", engine)
 
     def test_to_sql_with_connection(self):
         """Test df.to_sql() with database connection."""
-        code = '''
+        code = """
 import sqlite3
 conn = sqlite3.connect("test.db")
 df.to_sql("table_name", conn)
-'''
+"""
         tree = ast.parse(code)
         finder = DatabaseOperationFinder("test.py")
         finder.visit(tree)
@@ -423,9 +418,9 @@ df.to_sql("table_name", conn)
 
     def test_to_sql_without_tracked_connection(self):
         """Test df.to_sql() without a tracked connection variable."""
-        code = '''
+        code = """
 df.to_sql("table_name", "sqlite:///test.db")
-'''
+"""
         tree = ast.parse(code)
         finder = DatabaseOperationFinder("test.py")
         finder.visit(tree)
@@ -439,7 +434,7 @@ class TestFileOperationFinder:
 
     def test_multiple_file_operations(self):
         """Test finding multiple file operations in one script."""
-        code = '''
+        code = """
 with open("input.txt", "r") as f:
     data = f.read()
 
@@ -448,7 +443,7 @@ with open("output.txt", "w") as f:
 
 df = pd.read_csv("data.csv")
 df.to_excel("output.xlsx")
-'''
+"""
         tree = ast.parse(code)
         finder = FileOperationFinder("test.py")
         finder.visit(tree)
@@ -462,11 +457,11 @@ class TestModuleImportFinder:
 
     def test_import_tracking(self):
         """Test that imports are tracked correctly."""
-        code = '''
+        code = """
 import pandas as pd
 from pathlib import Path
 import numpy
-'''
+"""
         tree = ast.parse(code)
         # ModuleImportFinder requires project_modules parameter
         finder = ModuleImportFinder("test.py", project_modules=set())

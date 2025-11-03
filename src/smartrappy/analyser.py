@@ -13,12 +13,12 @@ from smartrappy.models import (
 )
 
 
-def get_mode_properties(mode: str) -> tuple[bool, bool]:
+def get_mode_properties(mode: Optional[str]) -> tuple[bool, bool]:
     """
     Determine read/write properties from a file mode string.
 
     Args:
-        mode: File mode string (e.g., 'r', 'w', 'a', 'x', 'r+', etc.)
+        mode: File mode string (e.g., 'r', 'w', 'a', 'x', 'r+', etc.), or None for default 'r'
 
     Returns:
         Tuple of (is_read, is_write)
