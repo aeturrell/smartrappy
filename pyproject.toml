@@ -1,6 +1,6 @@
 [project]
 name = "smartrappy"
-version = "0.0.7"
+version = "0.0.8"
 description = "Smart reproducible analytical pipeline visualisation."
 authors = [{name="Arthur Turrell", email="anon@anon.gmail.com"}]
 readme = "README.md"
