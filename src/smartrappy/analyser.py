@@ -466,9 +466,10 @@ def get_pandas_sql_info(node: ast.Call, source_file: str) -> Optional[DatabaseIn
 
         # Check positional arguments for connection
         if len(node.args) > conn_arg_idx:
-            if isinstance(node.args[conn_arg_idx], ast.Name):
+            conn_arg = node.args[conn_arg_idx]
+            if isinstance(conn_arg, ast.Name):
                 # Connection is provided as a variable
-                conn_var_name = node.args[conn_arg_idx].id
+                conn_var_name = conn_arg.id
 
         # Check for connection in kwargs
         for keyword in node.keywords:

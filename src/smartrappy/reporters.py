@@ -3,7 +3,7 @@
 import json
 import os
 from abc import ABC, abstractmethod
-from typing import Dict, Optional, Set
+from typing import Any, Dict, Optional, Set
 
 from graphviz import Digraph
 from rich.console import Console
@@ -437,21 +437,21 @@ class JsonReporter(Reporter):
             if model.internal_only and node.type == NodeType.EXTERNAL_MODULE:
                 continue
 
-            node_data = {
-                "id": node_id,
-                "name": node.name,
-                "type": node.type,
-                "metadata": {},
-            }
+            metadata: dict[str, Any] = {}
 
             # Handle file status for data files
             if node.type == NodeType.DATA_FILE and "status" in node.metadata:
                 status = node.metadata["status"]
-                node_data["metadata"]["exists"] = status.exists
+                metadata["exists"] = status.exists
                 if status.last_modified:
-                    node_data["metadata"]["last_modified"] = (
-                        status.last_modified.isoformat()
-                    )
+                    metadata["last_modified"] = status.last_modified.isoformat()
+
+            node_data = {
+                "id": node_id,
+                "name": node.name,
+                "type": node.type,
+                "metadata": metadata,
+            }
 
             serializable["nodes"].append(node_data)
 

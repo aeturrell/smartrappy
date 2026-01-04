@@ -1,17 +1,19 @@
 """Nox sessions."""
 
+import sys
 from pathlib import Path
 from textwrap import dedent
 
 import nox
 
 package = "smartrappy"
-python_versions = ["3.10", "3.11", "3.12"]
+python_versions = ["3.10", "3.11", "3.12", "3.13"]
 nox.needs_version = ">= 2021.6.6"
 nox.options.default_venv_backend = "uv"
 nox.options.sessions = (
     "pre-commit",
     "tests",
+    "ty",
     "typeguard",
     "xdoctest",
 )
@@ -116,6 +118,24 @@ def coverage(session: nox.Session) -> None:
     session.run("coverage", *args, "-i")
 
 
+@nox.session(python=python_versions, venv_backend="uv")
+def ty(session: nox.Session) -> None:
+    """Type-check using ty."""
+    args = session.posargs or ["src"]
+
+    # Install project and dependencies using uv
+    session.run_install(
+        "uv",
+        "sync",
+        "--group=dev",
+        env={"UV_PROJECT_ENVIRONMENT": session.virtualenv.location},
+    )
+    session.run_install("uv", "pip", "install", "-e", ".")
+    session.run("ty", "check", ".", *args)
+    if not session.posargs:
+        session.run("ty", "check", ".", f"--python={sys.executable}", "noxfile.py")
+
+
 @nox.session(name="pre-commit", python=python_versions[0], venv_backend="uv")
 def precommit(session: nox.Session) -> None:
     """Lint using pre-commit."""
@@ -123,7 +143,7 @@ def precommit(session: nox.Session) -> None:
     session.run_install(
         "uv",
         "sync",
-        "--extra=dev",
+        "--group=dev",
         env={"UV_PROJECT_ENVIRONMENT": session.virtualenv.location},
     )
     session.run("pre-commit", *args)
@@ -138,7 +158,7 @@ def typeguard(session: nox.Session) -> None:
     session.run_install(
         "uv",
         "sync",
-        "--extra=dev",
+        "--group=dev",
         env={"UV_PROJECT_ENVIRONMENT": session.virtualenv.location},
     )
     session.run_install("uv", "pip", "install", "-e", ".")
@@ -154,7 +174,7 @@ def xdoctest(session: nox.Session) -> None:
     session.run_install(
         "uv",
         "sync",
-        "--extra=dev",
+        "--group=dev",
         env={"UV_PROJECT_ENVIRONMENT": session.virtualenv.location},
     )
     session.run_install("uv", "pip", "install", "-e", ".")

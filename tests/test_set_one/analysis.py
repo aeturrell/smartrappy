@@ -9,4 +9,4 @@ def an_example_that_is_imported():
     print("hello")
 
 
-df_raw_in_data = pd.read_dta(Path("raw/raw_data_in.dta"))
+df_raw_in_data = pd.read_dta(Path("raw/raw_data_in.dta"))  # type: ignore[attr-defined]
