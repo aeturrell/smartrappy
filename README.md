@@ -8,36 +8,35 @@ Smart reproducible analytical pipeline inspection.
 [![Status](https://img.shields.io/pypi/status/smartrappy.svg)](https://pypi.org/project/smartrappy/)
 [![Python Version](https://img.shields.io/pypi/pyversions/smartrappy)](https://pypi.org/project/smartrappy)
 [![License](https://img.shields.io/pypi/l/smartrappy)](https://opensource.org/licenses/MIT)
-[![Read the documentation at https://aeturrell.github.io/smartrappy/](https://img.shields.io/badge/docs-passing-brightgreen)](https://aeturrell.github.io/smartrappy/)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+[![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://github.com/pre-commit/pre-commit)
 [![Tests](https://github.com/aeturrell/smartrappy/workflows/Tests/badge.svg)](https://github.com/aeturrell/smartrappy/actions?workflow=Tests)
 [![Codecov](https://codecov.io/gh/aeturrell/smartrappy/branch/main/graph/badge.svg)](https://codecov.io/gh/aeturrell/smartrappy)
-[![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://github.com/pre-commit/pre-commit)
-[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+[![Read the documentation at https://aeturrell.github.io/smartrappy/](https://img.shields.io/badge/docs-passing-brightgreen)](https://aeturrell.github.io/smartrappy/)
 [![Downloads](https://static.pepy.tech/badge/smartrappy)](https://pepy.tech/project/smartrappy)
-[![Source](https://img.shields.io/badge/source%20code-github-lightgrey?style=for-the-badge)](https://github.com/aeturrell/smartrappy)
+
 
 ![Linux](https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black)
 ![macOS](https://img.shields.io/badge/mac%20os-000000?style=for-the-badge&logo=macos&logoColor=F0F0F0)
 ![Windows](https://img.shields.io/badge/Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white)
-
-
+[![Source](https://img.shields.io/badge/source%20code-github-lightgrey?style=for-the-badge)](https://github.com/aeturrell/smartrappy)
 
 ## Introduction
-
-### What does this package do?
-
-**smartrappy** analyses a Python project and infers the directed acyclic graph (DAG) of the code and data dependencies, including the last time any data were refreshed and whether the data exist at all on disk. It is not perfect, and will miss a lot in complex projects: but for simple projects using, say, `pd.read_csv()`, it does a good job of inferring the steps. It can also infer writing to and from most databases. The inferred DAG is then visualised, and there are several options for doing that—the default being to produce a visualisation in the terminal.
 
 ### What is **smartrappy** for?
 
 **smartrappy** is designed to help you understand the dependencies in a project, especially in a context where there may be a lot of legacy code that resembles tangled spaghetti.
 
+### What does this package do?
+
+**smartrappy** analyses a Python project and infers the directed acyclic graph (DAG) of the code and data dependencies, including the last time any data were refreshed and whether the data exist at all on disk. It is not perfect, and will miss a lot in complex projects: but for simple projects using, say, `pd.read_csv()`, it does a good job of inferring the steps. It can also infer writing to and from most databases. The inferred DAG is then visualised, and there are several options for doing that—the default being to produce a visualisation in the terminal.
+
 ### Quickstart
 
-To use **smartrappy** as a command-line tool:
+To use **smartrappy** as a command-line tool, install it with `uv tool install smartrappy` and run it with
 
 ```bash
-smartrappy /path/to/your/project
+uvx smartrappy /path/to/your/project
 ```
 
 Or to use it within a Python script:
