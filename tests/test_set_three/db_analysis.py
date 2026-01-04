@@ -20,7 +20,7 @@ df3 = pd.read_sql_table("some_table", engine)
 mssql_conn = pyodbc.connect(
     "DRIVER={SQL Server};SERVER=myserver;DATABASE=mydatabase;UID=user;PWD=password"
 )
-df4 = pd.read_sql("SELECT TOP 10 * FROM customers", mssql_conn)
+df4 = pd.read_sql("SELECT TOP 10 * FROM customers", mssql_conn)  # type: ignore[arg-type]
 
 # MS SQL Server via SQLAlchemy
 mssql_engine = create_engine(

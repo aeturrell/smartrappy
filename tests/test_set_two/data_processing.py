@@ -12,4 +12,4 @@ def process_data():
 mssql_conn = pyodbc.connect(
     "DRIVER={SQL Server};SERVER=myserver;DATABASE=mydatabase;UID=user;PWD=password"
 )
-df_db = pd.read_sql("SELECT TOP 10 * FROM customers", mssql_conn)
+df_db = pd.read_sql("SELECT TOP 10 * FROM customers", mssql_conn)  # type: ignore[arg-type]

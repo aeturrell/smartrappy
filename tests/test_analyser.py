@@ -17,6 +17,19 @@ from smartrappy.analyser import (
 )
 
 
+def parse_call(code: str) -> ast.Call:
+    """Parse code containing a single call expression and return the Call node.
+
+    This helper properly narrows the AST type for the type checker.
+    """
+    tree = ast.parse(code)
+    stmt = tree.body[0]
+    assert isinstance(stmt, ast.Expr)
+    call = stmt.value
+    assert isinstance(call, ast.Call)
+    return call
+
+
 class TestGetModeProperties:
     """Test file mode parsing."""
 
@@ -75,24 +88,21 @@ class TestExtractStringFromNode:
     def test_path_call_with_name(self):
         """Test extraction from Path() call."""
         code = 'Path("test.txt")'
-        tree = ast.parse(code)
-        node = tree.body[0].value
+        node = parse_call(code)
         result = extract_string_from_node(node)
         assert result == "test.txt"
 
     def test_path_call_with_attribute(self):
         """Test extraction from pathlib.Path() call."""
         code = 'pathlib.Path("test.txt")'
-        tree = ast.parse(code)
-        node = tree.body[0].value
+        node = parse_call(code)
         result = extract_string_from_node(node)
         assert result == "test.txt"
 
     def test_non_path_call(self):
         """Test that non-Path calls return None."""
         code = 'other_func("test.txt")'
-        tree = ast.parse(code)
-        node = tree.body[0].value
+        node = parse_call(code)
         result = extract_string_from_node(node)
         assert result is None
 
@@ -103,16 +113,14 @@ class TestGetOpenFileInfo:
     def test_open_without_args(self):
         """Test open() without arguments returns None."""
         code = "open()"
-        tree = ast.parse(code)
-        node = tree.body[0].value
+        node = parse_call(code)
         result = get_open_file_info(node, "test.py")
         assert result is None
 
     def test_open_with_path_object(self):
         """Test open() with Path object."""
         code = 'open(Path("test.txt"))'
-        tree = ast.parse(code)
-        node = tree.body[0].value
+        node = parse_call(code)
         result = get_open_file_info(node, "test.py")
         assert result is not None
         assert result.filename == "test.txt"
@@ -122,8 +130,7 @@ class TestGetOpenFileInfo:
     def test_open_with_keyword_mode(self):
         """Test open() with mode as keyword argument."""
         code = 'open("test.txt", mode="w")'
-        tree = ast.parse(code)
-        node = tree.body[0].value
+        node = parse_call(code)
         result = get_open_file_info(node, "test.py")
         assert result is not None
         assert result.filename == "test.txt"
@@ -133,8 +140,7 @@ class TestGetOpenFileInfo:
     def test_open_with_append_mode(self):
         """Test open() with append mode."""
         code = 'open("test.txt", "a")'
-        tree = ast.parse(code)
-        node = tree.body[0].value
+        node = parse_call(code)
         result = get_open_file_info(node, "test.py")
         assert result is not None
         assert result.is_write is True
@@ -142,8 +148,7 @@ class TestGetOpenFileInfo:
     def test_open_with_read_write_mode(self):
         """Test open() with r+ mode."""
         code = 'open("test.txt", "r+")'
-        tree = ast.parse(code)
-        node = tree.body[0].value
+        node = parse_call(code)
         result = get_open_file_info(node, "test.py")
         assert result is not None
         assert result.is_read is True
@@ -156,40 +161,35 @@ class TestGetPandasFileInfo:
     def test_pandas_read_without_args(self):
         """Test pd.read_csv() without arguments returns None."""
         code = "pd.read_csv()"
-        tree = ast.parse(code)
-        node = tree.body[0].value
+        node = parse_call(code)
         result = get_pandas_file_info(node, "test.py")
         assert result is None
 
     def test_pandas_non_file_method(self):
         """Test pandas method that doesn't read/write files."""
         code = "pd.concat([df1, df2])"
-        tree = ast.parse(code)
-        node = tree.body[0].value
+        node = parse_call(code)
         result = get_pandas_file_info(node, "test.py")
         assert result is None
 
     def test_dataframe_to_csv_without_args(self):
         """Test df.to_csv() without arguments returns None."""
         code = "df.to_csv()"
-        tree = ast.parse(code)
-        node = tree.body[0].value
+        node = parse_call(code)
         result = get_pandas_file_info(node, "test.py")
         assert result is None
 
     def test_dataframe_to_sql(self):
         """Test df.to_sql() returns None (database, not file)."""
         code = 'df.to_sql("table", conn)'
-        tree = ast.parse(code)
-        node = tree.body[0].value
+        node = parse_call(code)
         result = get_pandas_file_info(node, "test.py")
         assert result is None
 
     def test_pandas_read_sql(self):
         """Test pd.read_sql() returns None (database, not file)."""
         code = 'pd.read_sql("SELECT * FROM table", conn)'
-        tree = ast.parse(code)
-        node = tree.body[0].value
+        node = parse_call(code)
         result = get_pandas_file_info(node, "test.py")
         assert result is None
 
@@ -200,8 +200,7 @@ class TestGetMatplotlibFileInfo:
     def test_savefig_with_path_object(self):
         """Test plt.savefig() with Path object."""
         code = 'plt.savefig(Path("plot.png"))'
-        tree = ast.parse(code)
-        node = tree.body[0].value
+        node = parse_call(code)
         result = get_matplotlib_file_info(node, "test.py")
         assert result is not None
         assert result.filename == "plot.png"
@@ -214,8 +213,7 @@ class TestGetSQLAlchemyInfo:
     def test_create_engine_with_string(self):
         """Test create_engine with connection string."""
         code = 'create_engine("sqlite:///test.db")'
-        tree = ast.parse(code)
-        node = tree.body[0].value
+        node = parse_call(code)
         result = get_sqlalchemy_info(node, "test.py")
         assert result is not None
         assert result.db_type == "sqlite"
@@ -224,8 +222,7 @@ class TestGetSQLAlchemyInfo:
     def test_create_engine_postgresql(self):
         """Test create_engine with PostgreSQL connection."""
         code = 'create_engine("postgresql://user:pass@localhost/mydb")'
-        tree = ast.parse(code)
-        node = tree.body[0].value
+        node = parse_call(code)
         result = get_sqlalchemy_info(node, "test.py")
         assert result is not None
         assert result.db_type == "postgresql"
@@ -234,8 +231,7 @@ class TestGetSQLAlchemyInfo:
     def test_create_engine_mysql(self):
         """Test create_engine with MySQL connection."""
         code = 'create_engine("mysql://user:pass@localhost/mydb")'
-        tree = ast.parse(code)
-        node = tree.body[0].value
+        node = parse_call(code)
         result = get_sqlalchemy_info(node, "test.py")
         assert result is not None
         assert result.db_type == "mysql"
@@ -244,8 +240,7 @@ class TestGetSQLAlchemyInfo:
     def test_create_engine_mssql(self):
         """Test create_engine with MSSQL connection."""
         code = 'create_engine("mssql://user:pass@localhost/mydb")'
-        tree = ast.parse(code)
-        node = tree.body[0].value
+        node = parse_call(code)
         result = get_sqlalchemy_info(node, "test.py")
         assert result is not None
         assert result.db_type == "mssql"
@@ -257,8 +252,7 @@ class TestGetPandasSQLInfo:
     def test_read_sql_with_connection_string(self):
         """Test pd.read_sql with connection string."""
         code = 'pd.read_sql("SELECT * FROM table", con="sqlite:///test.db")'
-        tree = ast.parse(code)
-        node = tree.body[0].value
+        node = parse_call(code)
         result = get_pandas_sql_info(node, "test.py")
         assert result is not None
         assert result.db_type == "sqlite"
@@ -267,8 +261,7 @@ class TestGetPandasSQLInfo:
     def test_read_sql_with_postgresql_connection(self):
         """Test pd.read_sql with PostgreSQL connection."""
         code = 'pd.read_sql("SELECT * FROM table", con="postgresql://localhost/mydb")'
-        tree = ast.parse(code)
-        node = tree.body[0].value
+        node = parse_call(code)
         result = get_pandas_sql_info(node, "test.py")
         assert result is not None
         assert result.db_type == "postgresql"
@@ -277,8 +270,7 @@ class TestGetPandasSQLInfo:
     def test_read_sql_with_mysql_connection(self):
         """Test pd.read_sql with MySQL connection."""
         code = 'pd.read_sql("SELECT * FROM table", con="mysql://localhost/mydb")'
-        tree = ast.parse(code)
-        node = tree.body[0].value
+        node = parse_call(code)
         result = get_pandas_sql_info(node, "test.py")
         assert result is not None
         assert result.db_type == "mysql"
@@ -286,8 +278,7 @@ class TestGetPandasSQLInfo:
     def test_read_sql_with_mssql_connection(self):
         """Test pd.read_sql with MSSQL ODBC connection."""
         code = 'pd.read_sql("SELECT * FROM table", con="Driver={SQL Server};Server=localhost;Database=mydb")'
-        tree = ast.parse(code)
-        node = tree.body[0].value
+        node = parse_call(code)
         result = get_pandas_sql_info(node, "test.py")
         assert result is not None
         assert result.db_type == "mssql"
@@ -296,8 +287,7 @@ class TestGetPandasSQLInfo:
     def test_read_sql_with_variable_connection(self):
         """Test pd.read_sql with variable connection."""
         code = 'pd.read_sql("SELECT * FROM table", conn_var)'
-        tree = ast.parse(code)
-        node = tree.body[0].value
+        node = parse_call(code)
         result = get_pandas_sql_info(node, "test.py")
         # Should still return a DatabaseInfo but without connection details
         assert result is not None
@@ -309,8 +299,7 @@ class TestGetDirectDBDriverInfo:
     def test_sqlite3_connect(self):
         """Test sqlite3.connect() call."""
         code = 'sqlite3.connect("test.db")'
-        tree = ast.parse(code)
-        node = tree.body[0].value
+        node = parse_call(code)
         result = get_direct_db_driver_info(node, "test.py")
         assert result is not None
         assert result.db_type == "sqlite"
@@ -319,8 +308,7 @@ class TestGetDirectDBDriverInfo:
     def test_psycopg2_connect(self):
         """Test psycopg2.connect() call."""
         code = 'psycopg2.connect("dbname=mydb user=postgres")'
-        tree = ast.parse(code)
-        node = tree.body[0].value
+        node = parse_call(code)
         result = get_direct_db_driver_info(node, "test.py")
         assert result is not None
         assert result.db_type == "postgresql"
@@ -328,8 +316,7 @@ class TestGetDirectDBDriverInfo:
     def test_pymysql_connect(self):
         """Test pymysql.connect() call."""
         code = 'pymysql.connect(host="localhost", database="mydb")'
-        tree = ast.parse(code)
-        node = tree.body[0].value
+        node = parse_call(code)
         result = get_direct_db_driver_info(node, "test.py")
         assert result is not None
         assert result.db_type == "mysql"
@@ -337,8 +324,7 @@ class TestGetDirectDBDriverInfo:
     def test_pyodbc_connect(self):
         """Test pyodbc.connect() call."""
         code = 'pyodbc.connect("Driver={SQL Server};Server=localhost;Database=mydb")'
-        tree = ast.parse(code)
-        node = tree.body[0].value
+        node = parse_call(code)
         result = get_direct_db_driver_info(node, "test.py")
         assert result is not None
         assert result.db_type == "mssql"
