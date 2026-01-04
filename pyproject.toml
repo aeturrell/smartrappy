@@ -41,6 +41,7 @@ dev = [
     "typeguard>=4.4.2",
     "pyodbc>=5.2.0",
     "sqlalchemy>=2.0.40",
+    "ty>=0.0.8",
 ]
 
 [project.scripts]
